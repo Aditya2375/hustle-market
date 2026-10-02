@@ -144,6 +144,78 @@ function input(name, type, required) {
   return i;
 }
 
+function digits(v) { return String(v || "").replace(/\D/g, "").replace(/^91(?=\d{10}$)/, ""); }
+function validMobile(v) { return /^[6-9]\d{9}$/.test(v); }
+function profile() {
+  try { var p = JSON.parse(localStorage.getItem("hmMe") || "null"); return p && p.name && validMobile(p.mobile) ? p : null; } catch (e) { return null; }
+}
+function saveProfile(name, mobile) { localStorage.setItem("hmMe", JSON.stringify({ name: name, mobile: mobile })); drawAccount(); }
+
+var MOBILE_HELP = "This is how the business contacts you about your order. Double-check it. A wrong number means they can't reach you and you lose your order.";
+
+function mobileField(name, value) {
+  var wrap = el("label", "field", "Mobile number");
+  var row = el("span", "phone");
+  row.appendChild(el("span", "phone-cc", "+91"));
+  var i = document.createElement("input");
+  i.name = name; i.type = "tel"; i.inputMode = "numeric"; i.autocomplete = "tel-national";
+  i.required = true; i.maxLength = 12; i.placeholder = "10-digit number"; i.value = value;
+  i.addEventListener("input", function () { i.value = i.value.replace(/[^\d ]/g, ""); });
+  row.appendChild(i);
+  wrap.appendChild(row);
+  wrap.appendChild(el("small", "help-line", MOBILE_HELP));
+  return wrap;
+}
+
+// UPI QR drawn in the browser. The site never touches the money: the customer pays the stall directly.
+function paymentPanel(res, stall, item, qty, hostel, room) {
+  var pay = res.pay || {};
+  var box = el("div", "pay");
+  box.appendChild(el("p", "kicker", "Step 2 of 2 \u00b7 Pay the stall"));
+  box.appendChild(el("h3", "pay-amt", rupees(pay.amount || qty * item.price)));
+  box.appendChild(el("p", "pay-to", "to " + (pay.payee || stall.name)));
+  if (pay.upi) {
+    var link = "upi://pay?pa=" + encodeURIComponent(pay.upi) + "&pn=" + encodeURIComponent(pay.payee || stall.name) +
+      "&am=" + encodeURIComponent(String(pay.amount)) + "&cu=INR&tn=" + encodeURIComponent(res.id);
+    var cv = document.createElement("canvas");
+    cv.className = "qr"; cv.setAttribute("role", "img"); cv.setAttribute("aria-label", "UPI QR code for " + rupees(pay.amount));
+    try {
+      var q = qrcode(0, "M"); q.addData(link); q.make();
+      var n = q.getModuleCount(), cell = 6, quiet = 3, size = (n + quiet * 2) * cell;
+      cv.width = size; cv.height = size;
+      var g = cv.getContext("2d");
+      g.fillStyle = "#fff"; g.fillRect(0, 0, size, size);
+      g.fillStyle = "#15100e";
+      for (var r = 0; r < n; r++) for (var c = 0; c < n; c++) if (q.isDark(r, c)) g.fillRect((c + quiet) * cell, (r + quiet) * cell, cell, cell);
+    } catch (e) {}
+    box.appendChild(cv);
+    var idRow = el("p", "pay-id");
+    idRow.appendChild(el("span", "", pay.upi));
+    var copy = el("button", "linkbtn", "Copy"); copy.type = "button";
+    copy.onclick = function () {
+      try { navigator.clipboard.writeText(pay.upi); copy.textContent = "Copied"; setTimeout(function () { copy.textContent = "Copy"; }, 1500); } catch (e) {}
+    };
+    idRow.appendChild(copy);
+    box.appendChild(idRow);
+    var open = el("a", "order pay-open", "Open my UPI app");
+    open.href = link;
+    box.appendChild(open);
+  }
+  var steps = el("ol", "pay-steps");
+  ["Scan the code, or open your UPI app on this phone.", "Pay exactly " + rupees(pay.amount || qty * item.price) + ". Don't change the amount.", "The stall checks your payment. Your order is confirmed once they verify it."].forEach(function (s) { steps.appendChild(el("li", "", s)); });
+  box.appendChild(steps);
+  var ref = el("p", "pay-ref");
+  ref.appendChild(el("span", "", "Order "));
+  ref.appendChild(el("b", "", res.id));
+  ref.appendChild(el("span", "", " \u00b7 " + qty + " x " + item.name + " \u00b7 " + hostel + ", room " + room));
+  box.appendChild(ref);
+  box.appendChild(el("p", "pay-note", "Status: awaiting payment verification. If it isn't confirmed in a few minutes, message the stall or use the help form."));
+  var done = el("button", "order", "I've paid");
+  done.type = "button"; done.onclick = closeSheet;
+  box.appendChild(done);
+  return box;
+}
+
 function openOrder(item) {
   var stall = stallById(item.stall);
   var sheet = document.getElementById("sheet");
@@ -179,7 +251,10 @@ function openOrder(item) {
   });
   form.appendChild(labelled("Hostel", hostel));
   form.appendChild(labelled("Room number", input("room", "text", true)));
-  form.appendChild(labelled("Your name", input("name", "text", true)));
+  var me = profile() || {};
+  var nameIn = input("name", "text", true); nameIn.maxLength = 60; nameIn.value = me.name || ""; nameIn.autocomplete = "name";
+  form.appendChild(labelled("Your name", nameIn));
+  form.appendChild(mobileField("mobile", me.mobile || ""));
   var trap = labelled("Website", input("website", "text", false));
   trap.className = "trap";
   trap.setAttribute("aria-hidden", "true");
@@ -219,8 +294,15 @@ function openOrder(item) {
     (stall.orderFields || []).forEach(function (f) {
       custom[f.label] = form.elements["x_" + f.id].value;
     });
+    var mob = digits(form.elements.mobile.value);
+    if (!validMobile(mob)) {
+      submit.disabled = false; msg.className = "form-msg err";
+      msg.textContent = "Check your mobile number. It should be 10 digits.";
+      return;
+    }
+    saveProfile(form.elements.name.value.trim(), mob);
     send({
-      action: "order",
+      action: "order", mobile: mob,
       stallId: stall.id, itemId: item.id, itemName: item.name, packLabel: item.packLabel,
       qty: qty, unitPrice: item.price, total: qty * item.price,
       hostel: form.elements.hostel.value, room: form.elements.room.value.trim(),
@@ -231,16 +313,7 @@ function openOrder(item) {
       var shownHostel = form.elements.hostel.value;
       var shownRoom = form.elements.room.value;
       form.textContent = "";
-      var done = el("div", "done");
-      done.appendChild(el("h3", "", "Order sent to " + stall.name));
-      done.appendChild(el("p", "ref", res.id));
-      done.appendChild(el("p", "", qty + " x " + item.name + " to " + shownHostel + ", room " + shownRoom + ". The stall sees it on their screen now. They will confirm it from there."));
-      if (res.demo) done.appendChild(el("p", "", "Demo mode: nothing was really sent."));
-      var again = el("button", "order", "Done");
-      again.type = "button";
-      again.onclick = closeSheet;
-      done.appendChild(again);
-      form.appendChild(done);
+      form.appendChild(paymentPanel(res, stall, item, qty, shownHostel, shownRoom));
     }).catch(function (err) {
       submit.disabled = false;
       msg.className = "form-msg err";
@@ -264,6 +337,10 @@ function orderButton(item) {
     off.type = "button";
     off.disabled = true;
     return off;
+  }
+  var stallObj = stallById(item.stall);
+  if (stallObj && stallObj.payReady === false) {
+    var np = el("button", "order off", "Not taking orders yet"); np.type = "button"; np.disabled = true; return np;
   }
   var b = el("button", "order", "Order");
   b.type = "button";
@@ -457,6 +534,64 @@ function showRoute() {
   }
 }
 
+// ---------- account menus ----------
+
+window.hmMenu = function (btnId, menuId) {
+  var btn = document.getElementById(btnId), menu = document.getElementById(menuId);
+  function close() { menu.hidden = true; btn.setAttribute("aria-expanded", "false"); }
+  btn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    var open = menu.hidden;
+    document.querySelectorAll(".menu").forEach(function (m) { m.hidden = true; });
+    document.querySelectorAll(".acct-btn").forEach(function (b) { b.setAttribute("aria-expanded", "false"); });
+    menu.hidden = !open; btn.setAttribute("aria-expanded", String(open));
+  });
+  menu.addEventListener("click", close);
+  document.addEventListener("click", close);
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") close(); });
+};
+
+function drawAccount() {
+  var p = profile();
+  var name = p ? p.name : "Account";
+  document.getElementById("acct-name").textContent = p ? p.name.split(" ")[0] : "Account";
+  document.getElementById("acct-avatar").textContent = p ? (p.name.match(/\p{L}/u) || ["?"])[0].toUpperCase() : "?";
+  document.getElementById("menu-who").textContent = p ? p.name + " \u00b7 +91 " + p.mobile.slice(0, 5) + " " + p.mobile.slice(5) : "Not signed in";
+}
+
+// ---------- customer details, asked once ----------
+
+function showIdentify(edit) {
+  var form = document.getElementById("identify-form");
+  var p = profile() || {};
+  form.elements.name.value = p.name || "";
+  var holder = document.getElementById("identify-mobile");
+  holder.textContent = "";
+  holder.appendChild(mobileField("mobile", p.mobile || ""));
+  document.getElementById("identify-msg").textContent = "";
+  document.getElementById("identify-back").hidden = false;
+  document.getElementById("gate").hidden = true;
+  document.getElementById("app").hidden = true;
+  document.getElementById("identify").hidden = false;
+  document.body.classList.add("is-gate");
+  form.dataset.edit = edit ? "1" : "";
+}
+
+document.getElementById("identify-form").addEventListener("submit", function (e) {
+  e.preventDefault();
+  var f = e.target, msg = document.getElementById("identify-msg");
+  var name = f.elements.name.value.trim(), mob = digits(f.elements.mobile.value);
+  if (!/^[\p{L}][\p{L} .'\-]{1,59}$/u.test(name)) { msg.className = "form-msg err"; msg.textContent = "Enter your name."; return; }
+  if (!validMobile(mob)) { msg.className = "form-msg err"; msg.textContent = "Enter a 10-digit mobile number."; return; }
+  saveProfile(name, mob);
+  document.getElementById("identify").hidden = true;
+  setRole("customer");
+});
+document.getElementById("identify-back").addEventListener("click", function () {
+  document.getElementById("identify").hidden = true;
+  setRole(profile() && sessionStorage.getItem("role") === "customer" ? "customer" : "");
+});
+
 // ---------- who is this: customer or business ----------
 
 function role() {
@@ -479,8 +614,10 @@ function presence(on) {
 }
 
 function setRole(r) {
+  if (r === "customer" && !profile()) { showIdentify(false); return; }
   if (r) sessionStorage.setItem("role", r); else sessionStorage.removeItem("role");
   var shown = r === "customer" || r === "business";
+  document.getElementById("identify").hidden = true;
   document.getElementById("gate").hidden = shown;
   document.getElementById("app").hidden = !shown;
   document.getElementById("view-customer").hidden = r !== "customer";
@@ -604,7 +741,13 @@ document.getElementById("bug-form").addEventListener("submit", function (e) {
   });
 });
 
-document.getElementById("gate-customer").addEventListener("click", function () { setRole("customer"); });
+document.getElementById("gate-customer").addEventListener("click", function () { if (profile()) setRole("customer"); else showIdentify(false); });
+document.getElementById("menu-edit").addEventListener("click", function () { showIdentify(true); });
+document.getElementById("menu-out").addEventListener("click", function () {
+  localStorage.removeItem("hmMe"); sessionStorage.removeItem("role"); drawAccount(); setRole("");
+});
+window.hmMenu("acct-btn", "acct-menu");
+drawAccount();
 document.getElementById("gate-business").addEventListener("click", function () { window.location.hash = "#business"; setRole("business"); });
 document.getElementById("to-business").addEventListener("click", function () { window.location.hash = "#business"; setRole("business"); });
 document.getElementById("to-customer").addEventListener("click", function () { setRole("customer"); });
