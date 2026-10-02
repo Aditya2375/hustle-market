@@ -153,7 +153,7 @@ function show(signedIn) {
 }
 
 function refresh() {
-  return api({ action: "orders" }).then(function (res) {
+  return api(view ? { action: "orders" } : { action: "orders", v: 1 }).then(function (res) {
     if (!res.ok) throw new Error(res.error || "failed");
     show(true);
     document.getElementById("stall-name").textContent = res.stall.name;
