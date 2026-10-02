@@ -2,7 +2,7 @@
 // Stall dashboard. Open as stall.html?s=<stall id>&k=<private key>.
 // Reads orders from the Apps Script backend every 30 seconds. Demo mode (no backend URL) reads this browser's demo orders.
 
-// Stall dashboard. The stall signs in with its name and an access code (given by the admin).
+// Stall dashboard. The stall signs in with its name and an access code (given to the stall).
 // The code is checked on the server for every request. It is never put in the page address.
 var stallId = "";
 var login = JSON.parse(localStorage.getItem("hmLogin") || "null");
@@ -11,7 +11,6 @@ var started = false;
 var cfg = null;
 var seen = JSON.parse(sessionStorage.getItem("seen") || "[]");
 var firstLoad = true;
-var isAdmin = false;
 
 function el(tag, cls, text) {
   var n = document.createElement(tag);
@@ -43,7 +42,9 @@ function api(payload) {
 
   payload.login = login.login;
   payload.code = login.code;
-  return fetch(cfg.backend.url, { method: "POST", body: JSON.stringify(payload) }).then(function (r) { return r.json(); });
+  if (payload.action === "orders" && !view) payload.v = 1;
+  var t0 = Date.now();
+  return fetch(cfg.backend.url, { method: "POST", body: JSON.stringify(payload) }).then(function (r) { return r.json(); }).then(function (j) { hm.lastMs = Date.now() - t0; return j; });
 }
 
 function clock(iso) {
@@ -51,15 +52,18 @@ function clock(iso) {
   return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) + ", " + d.toLocaleDateString([], { day: "numeric", month: "short" });
 }
 
-function drawOrders(orders) {
-  var box = document.getElementById("orders");
+function drawOrders(orders, boxEl, opts) {
+  opts = opts || {};
+  var box = boxEl || document.getElementById("orders");
   box.textContent = "";
   orders.sort(function (a, b) { return a.time < b.time ? 1 : -1; });
 
   var fresh = orders.filter(function (o) { return o.status === "new"; });
-  document.getElementById("new-count").textContent =
-    fresh.length ? fresh.length + " new order" + (fresh.length === 1 ? "" : "s") + " waiting" : "No new orders. Waiting...";
-  document.title = (fresh.length ? "(" + fresh.length + ") " : "") + "Stall orders";
+  if (!boxEl) {
+    document.getElementById("new-count").textContent =
+      fresh.length ? fresh.length + " new order" + (fresh.length === 1 ? "" : "s") + " waiting" : "No new orders. Waiting...";
+    document.title = (fresh.length ? "(" + fresh.length + ") " : "") + "Stall orders";
+  }
 
   if (orders.length === 0) box.appendChild(el("p", "empty", "Nothing yet. New orders appear here by themselves."));
 
@@ -74,7 +78,7 @@ function drawOrders(orders) {
 
     var where = el("p", "dash-where", o.hostel + " \u00b7 Room " + o.room);
     card.appendChild(where);
-    if (isAdmin && o.stallName) card.appendChild(el("p", "best", o.stallName));
+    if (opts.stallNames && o.stallName) card.appendChild(el("p", "best", o.stallName));
     card.appendChild(el("p", "stall", o.name + " \u00b7 " + clock(o.time) + " \u00b7 " + o.id));
 
     var extra = o.custom || {};
@@ -83,13 +87,13 @@ function drawOrders(orders) {
     });
 
     var actions = el("div", "actions");
-    if (o.status === "new") actions.appendChild(statusBtn(o, "accepted", "Accept"));
+    if (o.status === "new") actions.appendChild(statusBtn(opts, o, "accepted", "Accept"));
     if (o.status === "new" || o.status === "accepted") {
-      actions.appendChild(statusBtn(o, "delivered", "Delivered"));
-      actions.appendChild(statusBtn(o, "cancelled", "Cancel", true));
+      actions.appendChild(statusBtn(opts, o, "delivered", "Delivered"));
+      actions.appendChild(statusBtn(opts, o, "cancelled", "Cancel", true));
     }
-    if (o.status !== "flagged") actions.appendChild(statusBtn(o, "flagged", "Flag fake", true));
-    actions.appendChild(statusBtn(o, "deleted", "Delete", true));
+    if (o.status !== "flagged") actions.appendChild(statusBtn(opts, o, "flagged", "Flag fake", true));
+    actions.appendChild(statusBtn(opts, o, "deleted", "Delete", true));
     if (o.status !== "new") actions.appendChild(el("span", "facts-status", o.status.toUpperCase()));
     card.appendChild(actions);
     box.appendChild(card);
@@ -99,7 +103,7 @@ function drawOrders(orders) {
   firstLoad = false;
 }
 
-function statusBtn(o, status, label, quiet) {
+function statusBtn(opts, o, status, label, quiet) {
   var b = el("button", "order" + (quiet ? " off quiet" : ""), label);
   b.type = "button";
   b.onclick = function () {
@@ -107,7 +111,7 @@ function statusBtn(o, status, label, quiet) {
     // Show the change at once; the server confirms on the next refresh.
     o.status = status;
     if (status === "deleted") lastOrders = lastOrders.filter(function (x) { return x.id !== o.id; });
-    drawOrders(lastOrders);
+    if (opts.onChange) opts.onChange(); else drawOrders(lastOrders);
     api({ action: "status", id: o.id, status: status }).then(function () { refresh(); });
   };
   return b;
@@ -117,25 +121,12 @@ function drawItems(items) {
   var box = document.getElementById("items");
   box.textContent = "";
   var real = cfg.backend && cfg.backend.url;
-  document.getElementById("stock-help").textContent = isAdmin ? "Every item across every stall. Sold out and price changes reach the site within about a minute." : real
+  document.getElementById("stock-help").textContent = real
     ? "Out of something? Tap Sold out. It stops being orderable on the site within about a minute."
     : "Demo mode: stock buttons are off.";
   items.forEach(function (it) {
     var row = el("div", "item-row");
-    var stallLabel = isAdmin && adminStalls ? (adminStalls.filter(function (s) { return s.id === it.stall; })[0] || {}).name : "";
-    row.appendChild(el("span", "item-row-name", (stallLabel ? stallLabel + " \u00b7 " : "") + it.name + " \u00b7 \u20B9" + it.price));
-    if (isAdmin) {
-      var pb = el("button", "order off quiet", "Edit price");
-      pb.type = "button";
-      pb.onclick = function () {
-        var v = window.prompt("New price in rupees for " + it.name, String(it.price));
-        if (v === null) return;
-        var n = Number(v);
-        if (!(n > 0 && n < 100000)) { window.alert("Enter a price above 0."); return; }
-        api({ action: "edititem", itemId: it.id, price: n }).then(function (r) { if (r.ok) { it.price = n; drawItems(items); } else window.alert("Could not save. Try again."); });
-      };
-      row.appendChild(pb);
-    }
+    row.appendChild(el("span", "item-row-name", it.name + " \u00b7 \u20B9" + it.price));
     var b = el("button", "order" + (it.inStock ? "" : " off"), it.inStock ? "Sold out" : "Back in stock");
     b.type = "button";
     b.disabled = !real;
@@ -153,24 +144,8 @@ function drawItems(items) {
 
 var lastItems = null;
 var lastOrders = [];
-var adminStalls = null;
-
-function drawAdmin(stalls) {
-  var box = document.getElementById("admin-stalls");
-  box.textContent = "";
-  stalls.forEach(function (s) {
-    var row = el("div", "item-row");
-    row.appendChild(el("span", "item-row-name", s.name + " \u00b7 " + (s.status === "live" ? "LIVE" : "PENDING")));
-    var b = el("button", "order" + (s.status === "live" ? " off" : ""), s.status === "live" ? "Set pending" : "Set live");
-    b.type = "button";
-    b.onclick = function () {
-      b.disabled = true;
-      api({ action: "stallstatus", stallId: s.id, status: s.status === "live" ? "pending" : "live" }).then(function () { refresh(); });
-    };
-    row.appendChild(b);
-    box.appendChild(row);
-  });
-}
+var view = null;
+var hm = { el: el, clock: clock, drawOrders: drawOrders, root: null, lastMs: 0, api: function (p) { return api(p); }, refresh: function () { return refresh(); } };
 function show(signedIn) {
   document.getElementById("login").hidden = signedIn;
   document.getElementById("board").hidden = !signedIn;
@@ -183,14 +158,20 @@ function refresh() {
     show(true);
     document.getElementById("stall-name").textContent = res.stall.name;
     stallId = res.stall.id;
-    isAdmin = !!res.admin;
-    adminStalls = res.stalls || null;
-    document.getElementById("admin").hidden = !isAdmin;
-    if (isAdmin) drawAdmin(res.stalls || []);
     lastOrders = res.orders;
-    drawOrders(lastOrders);
-    lastItems = res.items || cfg.items.filter(function (i) { return i.stall === stallId; });
-    drawItems(lastItems);
+    if (res.view) {
+      try { view = new Function("hm", res.view)(hm); } catch (e) { view = null; }
+    }
+    var ext = document.getElementById("ext");
+    ext.hidden = !view;
+    document.getElementById("board").hidden = !!view;
+    if (view) {
+      view.update(res);
+    } else {
+      drawOrders(lastOrders);
+      lastItems = res.items || cfg.items.filter(function (i) { return i.stall === stallId; });
+      drawItems(lastItems);
+    }
     var line = document.getElementById("status-line");
     line.textContent = "Updated " + new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" });
     line.classList.remove("err");
@@ -200,11 +181,13 @@ function refresh() {
     if (err.message === "bad login") {
       localStorage.removeItem("hmLogin");
       login = null;
+      view = null;
+      document.getElementById("ext").hidden = true;
       show(false);
       clearInterval(timer); timer = null;
       document.getElementById("stall-name").textContent = "Stall login";
       line.textContent = "";
-      document.getElementById("login-msg").textContent = "Wrong name or code.";
+      document.getElementById("login-msg").textContent = "Wrong stall name or code.";
       return;
     }
     line.classList.add("err");
@@ -212,6 +195,7 @@ function refresh() {
   });
 }
 
+hm.root = document.getElementById("ext");
 document.getElementById("login-form").addEventListener("submit", function (e) {
   e.preventDefault();
   var f = e.target;
