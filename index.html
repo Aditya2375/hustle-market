@@ -183,7 +183,7 @@
       </section>
       <section class="login wrap" id="login" hidden>
         <form id="login-form" class="form" autocomplete="off">
-          <label>Stall name<input name="login" required maxlength="60" autocapitalize="off"></label>
+          <label>Business name<input name="login" required maxlength="60" autocapitalize="off"></label>
           <label>Access code<input name="code" required maxlength="30" autocapitalize="characters" spellcheck="false"></label>
           <button class="order" type="submit">Open dashboard</button>
           <p class="form-msg" id="login-msg" aria-live="polite"></p>
@@ -195,7 +195,7 @@
           <p class="kicker">New stall</p>
           <h2 class="setup-title">Sign up your stall</h2>
           <p class="dash-p">Pick your stall name. You get a private access code next, then a short setup with your team details.</p>
-          <label class="field">Stall name<input name="name" required maxlength="40" autocomplete="off" placeholder="e.g. Chai Corner"></label>
+          <label class="field">Business name<input name="name" required maxlength="40" autocomplete="off" placeholder="e.g. Chai Corner"></label>
           <input name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
           <button class="order" type="submit" id="signup-submit">Create my stall</button>
           <button class="linkbtn back-link" type="button" id="signup-back">I already have a code</button>
@@ -217,12 +217,12 @@
           <label class="field">Owner name<input name="owner" required maxlength="60" autocomplete="off" placeholder="Who runs this stall"></label>
           <label class="field">Category<select name="category" required><option value="">Choose one</option><option>Food</option><option>Drinks</option><option>Accessories</option><option>Other</option></select></label>
           <label class="field">Full item list<textarea name="itemList" required rows="5" maxlength="2000" placeholder="One item per line, with price and pack size. e.g. Brownie box (4 pieces) - 120"></textarea><small class="help-line">Everything you want to sell. We add it to your menu, and you can edit it any time from your dashboard.</small></label>
-          <label class="field">Owner mobile<input name="ownerMobile" required inputmode="numeric" maxlength="10" autocomplete="off" placeholder="10-digit number"><small class="help-line">If an order is cancelled, customers are shown this number so they can sort it out with you.</small></label>
+          <label class="field">Contact number<input name="ownerMobile" required inputmode="numeric" maxlength="10" autocomplete="off" placeholder="10-digit number"><small class="help-line">If an order is cancelled, customers are shown this number so they can sort it out with you.</small></label>
           <label class="field">Owner email<input name="ownerEmail" type="email" required maxlength="120" autocapitalize="off" autocomplete="off" placeholder="name@gmail.com"></label>
           <fieldset class="field"><legend>The rest of your team (4 more people)</legend><p class="help-line">A stall is a team of 5. Each person needs their own mobile and email. One team, one stall: anyone already on another stall cannot be added.</p><div id="setup-team"></div></fieldset>
           <label class="field">UPI ID<input name="upi" required maxlength="100" autocapitalize="off" spellcheck="false" autocomplete="off" placeholder="name@bank"><small class="help-line">Customers pay this ID directly. Check it twice: a typo sends their money to someone else.</small></label>
           <label class="field">Type the UPI ID again<input name="upi2" required maxlength="100" autocapitalize="off" spellcheck="false" autocomplete="off" placeholder="name@bank"></label>
-          <fieldset class="field"><legend>Hostels you deliver to</legend><div class="check-row" id="setup-hostels"></div></fieldset>
+          <fieldset class="field"><legend>Which hostels do you deliver to?</legend><div class="check-row" id="setup-hostels"></div></fieldset>
           <label class="field">Do you offer free delivery?<select name="delivery" required><option value="">Choose one</option><option>Yes, on all items</option><option>No, delivery is paid</option><option>Only on some items (say which in the item list)</option></select></label>
           <label class="field">Extra fields you want customers to fill when ordering (optional)<textarea name="extraFields" rows="2" maxlength="500" placeholder="e.g. flavour, size, message on the cake"></textarea></label>
           <label class="field">Anything else we should know? (optional)<textarea name="notes" rows="2" maxlength="500"></textarea></label>
