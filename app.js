@@ -801,6 +801,50 @@ setInterval(function () {
   }).catch(function () {});
 }, 30000);
 
+
+// ---------- order notices: an order the stall did not approve in time, or cancelled ----------
+function showOrderNotice(o, res) {
+  var host = document.getElementById("order-notices");
+  if (!host) return;
+  var box = el("div", "notice");
+  var why = res.status === "expired"
+    ? "was not approved by the stall within 10 minutes, so it was closed."
+    : "was cancelled by the stall.";
+  box.appendChild(el("p", "notice-t", "Order " + o.id + " (" + o.item + ") " + why));
+  var p = el("p", "notice-s");
+  if (res.ownerMobile) {
+    p.appendChild(document.createTextNode("If you already paid, or want to sort it out, call " + (res.stallName || o.stall) + " directly: "));
+    var a = el("a", "tel", "+91 " + res.ownerMobile.slice(0, 5) + " " + res.ownerMobile.slice(5));
+    a.href = "tel:+91" + res.ownerMobile;
+    p.appendChild(a);
+    p.appendChild(document.createTextNode(". You can also use the complaint form below."));
+  } else {
+    p.textContent = "If you already paid, use the complaint form below and we will sort it out.";
+  }
+  box.appendChild(p);
+  var x = el("button", "linkbtn", "Dismiss"); x.type = "button";
+  x.onclick = function () { box.remove(); };
+  box.appendChild(x);
+  host.appendChild(box);
+}
+
+function checkOrders() {
+  var me = profile();
+  if (!me || !backendUrl() || sessionStorage.getItem("role") !== "customer") return;
+  var list; try { list = JSON.parse(localStorage.getItem("hmOrders") || "[]"); } catch (e) { return; }
+  var dirty = false, now = Date.now();
+  list.filter(function (o) { return !o.done && o.t && now - o.t < 6 * 3600 * 1000; }).slice(0, 5).forEach(function (o) {
+    send({ action: "orderstatus", id: o.id, mobile: me.mobile }).then(function (res) {
+      if (!res || !res.ok) return;
+      if (res.status === "expired" || res.status === "cancelled") { o.done = true; dirty = true; showOrderNotice(o, res); }
+      else if (res.status !== "awaiting") { o.done = true; dirty = true; }
+      if (dirty) try { localStorage.setItem("hmOrders", JSON.stringify(list)); } catch (e) {}
+    }).catch(function () {});
+  });
+}
+setInterval(checkOrders, 20000);
+setTimeout(checkOrders, 4000);
+
 // ---------- start ----------
 
 // Gate is visible straight away; the app shows after the data loads and a role is known.
@@ -1013,7 +1057,7 @@ function rememberOrder(id, stallName, itemName) {
   if (!id || id === "HM-0000") return;
   try {
     var list = JSON.parse(localStorage.getItem("hmOrders") || "[]");
-    list.unshift({ id: id, stall: stallName, item: itemName });
+    list.unshift({ id: id, stall: stallName, item: itemName, t: Date.now() });
     localStorage.setItem("hmOrders", JSON.stringify(list.slice(0, 20)));
   } catch (e) {}
   drawComplaintForm();
