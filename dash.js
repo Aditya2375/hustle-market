@@ -175,7 +175,7 @@ function refresh() {
     var line = document.getElementById("status-line");
     line.textContent = "Updated " + new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" });
     line.classList.remove("err");
-    if (!timer) timer = setInterval(function () { if (!document.getElementById("view-business").hidden) refresh(); }, 30000);
+    if (!timer) timer = setInterval(function () { if (!document.getElementById("view-business").hidden) refresh(); }, 15000);
   }).catch(function (err) {
     var line = document.getElementById("status-line");
     if (err.message === "bad login") {
