@@ -422,3 +422,9 @@ div.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px,
 .pending-box .setup-title { margin-bottom: 8px; }
 #pending-pay { margin: 26px 0 8px; }
 #pending-pay .pay-amt { font-size: 56px; }
+
+.signup-cta { margin: 18px 0 0; text-align: center; font-size: 14px; color: var(--muted); }
+.signup-cta .linkbtn { margin-left: 6px; }
+.hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+.signup-done { text-align: center; }
+.signup-done .pay-id { font-size: 22px; letter-spacing: .08em; }
