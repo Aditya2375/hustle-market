@@ -3,7 +3,7 @@
     "name": "Hustle Market",
     "note": "SST hustle event, Uniworld 1 and Uniworld 2, Bengaluru",
     "demo": true,
-    "stockNote": "Stock and prices come from the stalls themselves and can lag by up to 30 minutes."
+    "stockNote": "Stock and prices come from the stalls themselves and update within about a minute."
   },
   "hostels": [
     "Uniworld 1",
