@@ -120,13 +120,18 @@
       </header>
       <section class="login wrap" id="login" hidden>
         <form id="login-form" class="form" autocomplete="off">
-          <label>Stall name<input name="login" required maxlength="60" autocapitalize="off"></label>
+          <label>Stall name or admin ID<input name="login" required maxlength="60" autocapitalize="off"></label>
           <label>Access code<input name="code" required maxlength="30" autocapitalize="characters" spellcheck="false"></label>
           <button class="order" type="submit">Open dashboard</button>
           <p class="form-msg" id="login-msg" aria-live="polite"></p>
         </form>
       </section>
       <main id="board" class="wrap" hidden>
+        <section id="admin" hidden>
+          <h2 class="dash-h">Stalls</h2>
+          <p class="dash-p">Admin. Mark a stall live to open it for orders, or pending to hide it.</p>
+          <div id="admin-stalls"></div>
+        </section>
         <p class="count" id="new-count" aria-live="polite"></p>
         <div id="orders"></div>
         <h2 class="dash-h">Your items</h2>
