@@ -1,0 +1,394 @@
+{
+  "event": {
+    "name": "Hustle Market",
+    "note": "SST hustle event, Uniworld 1 and Uniworld 2, Bengaluru",
+    "demo": true,
+    "stockNote": "Stock and prices come from the stalls themselves and can lag by up to 30 minutes."
+  },
+  "hostels": [
+    "Uniworld 1",
+    "Uniworld 2"
+  ],
+  "categories": [
+    {
+      "id": "food",
+      "label": "Food",
+      "subs": [
+        "Brownies",
+        "Chips",
+        "Snacks"
+      ]
+    },
+    {
+      "id": "drinks",
+      "label": "Drinks",
+      "subs": []
+    },
+    {
+      "id": "accessories",
+      "label": "Accessories",
+      "subs": []
+    },
+    {
+      "id": "other",
+      "label": "Other",
+      "subs": []
+    }
+  ],
+  "stalls": [
+    {
+      "id": "s1",
+      "name": "Demo Stall A (Fudge Co)",
+      "owner": "Demo Owner A",
+      "hostels": [
+        "Uniworld 1",
+        "Uniworld 2"
+      ],
+      "status": "live",
+      "email": "",
+      "orderFields": [
+        {
+          "id": "note",
+          "label": "Message on the box (optional)",
+          "type": "text",
+          "required": false
+        }
+      ],
+      "maxQty": 10
+    },
+    {
+      "id": "s2",
+      "name": "Demo Stall B (Midnight Bakes)",
+      "owner": "Demo Owner B",
+      "hostels": [
+        "Uniworld 1"
+      ],
+      "status": "live",
+      "email": "",
+      "orderFields": [
+        {
+          "id": "eggless",
+          "label": "Eggless?",
+          "type": "select",
+          "options": [
+            "Yes",
+            "No"
+          ],
+          "required": true
+        }
+      ],
+      "maxQty": 10
+    },
+    {
+      "id": "s3",
+      "name": "Demo Stall C (Crunch Corner)",
+      "owner": "Demo Owner C",
+      "hostels": [
+        "Uniworld 2"
+      ],
+      "status": "live",
+      "email": "",
+      "orderFields": [
+        {
+          "id": "spice",
+          "label": "Spice level",
+          "type": "select",
+          "options": [
+            "Mild",
+            "Medium",
+            "Hot"
+          ],
+          "required": true
+        }
+      ],
+      "maxQty": 10
+    },
+    {
+      "id": "s4",
+      "name": "Demo Stall D (Chai Point 404)",
+      "owner": "Demo Owner D",
+      "hostels": [
+        "Uniworld 1",
+        "Uniworld 2"
+      ],
+      "status": "live",
+      "email": "",
+      "orderFields": [
+        {
+          "id": "sugar",
+          "label": "Sugar",
+          "type": "select",
+          "options": [
+            "Normal",
+            "Less",
+            "None"
+          ],
+          "required": true
+        }
+      ],
+      "maxQty": 10
+    },
+    {
+      "id": "s5",
+      "name": "Demo Stall E (Desk Things)",
+      "owner": "Demo Owner E",
+      "hostels": [
+        "Uniworld 1",
+        "Uniworld 2"
+      ],
+      "status": "live",
+      "email": "",
+      "orderFields": [],
+      "maxQty": 10
+    }
+  ],
+  "items": [
+    {
+      "id": "i1",
+      "stall": "s1",
+      "name": "Fudge brownie box",
+      "category": "food",
+      "sub": "Brownies",
+      "compare": "brownie-box",
+      "price": 120,
+      "packLabel": "4 pieces",
+      "packCount": 4,
+      "freeDelivery": true,
+      "inStock": true
+    },
+    {
+      "id": "i2",
+      "stall": "s2",
+      "name": "Walnut brownie box",
+      "category": "food",
+      "sub": "Brownies",
+      "compare": "brownie-box",
+      "price": 100,
+      "packLabel": "3 pieces",
+      "packCount": 3,
+      "freeDelivery": false,
+      "inStock": true
+    },
+    {
+      "id": "i3",
+      "stall": "s3",
+      "name": "Brownie box",
+      "category": "food",
+      "sub": "Brownies",
+      "compare": "brownie-box",
+      "price": 150,
+      "packLabel": "6 pieces",
+      "packCount": 6,
+      "freeDelivery": true,
+      "inStock": false
+    },
+    {
+      "id": "i4",
+      "stall": "s2",
+      "name": "Single brownie",
+      "category": "food",
+      "sub": "Brownies",
+      "compare": "brownie-single",
+      "price": 40,
+      "packLabel": "1 piece",
+      "packCount": 1,
+      "freeDelivery": false,
+      "inStock": true
+    },
+    {
+      "id": "i5",
+      "stall": "s1",
+      "name": "Single brownie",
+      "category": "food",
+      "sub": "Brownies",
+      "compare": "brownie-single",
+      "price": 35,
+      "packLabel": "1 piece",
+      "packCount": 1,
+      "freeDelivery": true,
+      "inStock": true
+    },
+    {
+      "id": "i6",
+      "stall": "s3",
+      "name": "Masala banana chips",
+      "category": "food",
+      "sub": "Chips",
+      "compare": "banana-chips",
+      "price": 60,
+      "packLabel": "200 g",
+      "packCount": 200,
+      "packUnit": "g",
+      "freeDelivery": false,
+      "inStock": true
+    },
+    {
+      "id": "i7",
+      "stall": "s1",
+      "name": "Banana chips",
+      "category": "food",
+      "sub": "Chips",
+      "compare": "banana-chips",
+      "price": 50,
+      "packLabel": "150 g",
+      "packCount": 150,
+      "packUnit": "g",
+      "freeDelivery": true,
+      "inStock": true
+    },
+    {
+      "id": "i8",
+      "stall": "s4",
+      "name": "Veg sandwich",
+      "category": "food",
+      "sub": "Snacks",
+      "compare": "veg-sandwich",
+      "price": 50,
+      "packLabel": "1 sandwich",
+      "packCount": 1,
+      "freeDelivery": true,
+      "inStock": true
+    },
+    {
+      "id": "i9",
+      "stall": "s3",
+      "name": "Peri peri makhana",
+      "category": "food",
+      "sub": "Snacks",
+      "compare": "makhana",
+      "price": 80,
+      "packLabel": "100 g",
+      "packCount": 100,
+      "packUnit": "g",
+      "freeDelivery": false,
+      "inStock": true
+    },
+    {
+      "id": "i10",
+      "stall": "s4",
+      "name": "Masala chai",
+      "category": "drinks",
+      "sub": "",
+      "compare": "chai",
+      "price": 15,
+      "packLabel": "1 cup",
+      "packCount": 1,
+      "freeDelivery": true,
+      "inStock": true
+    },
+    {
+      "id": "i11",
+      "stall": "s4",
+      "name": "Cold coffee",
+      "category": "drinks",
+      "sub": "",
+      "compare": "cold-coffee",
+      "price": 60,
+      "packLabel": "300 ml",
+      "packCount": 300,
+      "packUnit": "ml",
+      "freeDelivery": true,
+      "inStock": true
+    },
+    {
+      "id": "i12",
+      "stall": "s2",
+      "name": "Cold coffee",
+      "category": "drinks",
+      "sub": "",
+      "compare": "cold-coffee",
+      "price": 70,
+      "packLabel": "250 ml",
+      "packCount": 250,
+      "packUnit": "ml",
+      "freeDelivery": false,
+      "inStock": false
+    },
+    {
+      "id": "i13",
+      "stall": "s3",
+      "name": "Fresh lime soda",
+      "category": "drinks",
+      "sub": "",
+      "compare": "lime-soda",
+      "price": 30,
+      "packLabel": "1 glass",
+      "packCount": 1,
+      "freeDelivery": false,
+      "inStock": true
+    },
+    {
+      "id": "i14",
+      "stall": "s5",
+      "name": "Foldable phone stand",
+      "category": "accessories",
+      "sub": "",
+      "compare": "phone-stand",
+      "price": 99,
+      "packLabel": "1 piece",
+      "packCount": 1,
+      "freeDelivery": true,
+      "inStock": true
+    },
+    {
+      "id": "i15",
+      "stall": "s5",
+      "name": "Hand-painted keychain",
+      "category": "accessories",
+      "sub": "",
+      "compare": "keychain",
+      "price": 49,
+      "packLabel": "1 piece",
+      "packCount": 1,
+      "freeDelivery": true,
+      "inStock": true
+    },
+    {
+      "id": "i16",
+      "stall": "s5",
+      "name": "Cable organiser clips",
+      "category": "accessories",
+      "sub": "",
+      "compare": "cable-clips",
+      "price": 79,
+      "packLabel": "5 clips",
+      "packCount": 5,
+      "freeDelivery": true,
+      "inStock": false
+    },
+    {
+      "id": "i17",
+      "stall": "s5",
+      "name": "A5 notebook",
+      "category": "other",
+      "sub": "",
+      "compare": "notebook",
+      "price": 90,
+      "packLabel": "1 notebook",
+      "packCount": 1,
+      "freeDelivery": true,
+      "inStock": true
+    },
+    {
+      "id": "i18",
+      "stall": "s5",
+      "name": "Sticker sheet",
+      "category": "other",
+      "sub": "",
+      "compare": "stickers",
+      "price": 25,
+      "packLabel": "1 sheet",
+      "packCount": 1,
+      "freeDelivery": false,
+      "inStock": true
+    }
+  ],
+  "backend": {
+    "_help": "Paste the Apps Script web app URL below once deployed. Empty = demo mode (orders and bug reports go nowhere).",
+    "url": ""
+  },
+  "support": {
+    "email": "",
+    "note": "Bug or question about the site or a stall? Use the form below. It goes to the support inbox, not to the stalls."
+  }
+}

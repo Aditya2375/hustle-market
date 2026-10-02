@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self' https://script.google.com https://script.googleusercontent.com; base-uri 'none'; form-action 'self'">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex">
+  <title>Hustle Market | Uniworld</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <p class="demo-banner" id="demo-banner" hidden>DEMO. Placeholder stalls and prices. Orders sent from here go nowhere.</p>
+
+  <header class="top">
+    <p class="kicker">Uniworld 1 + 2 &middot; hustle event</p>
+    <h1 class="wordmark"><span>Hustle</span><span>Market</span></h1>
+    <p class="tagline">Every stall in one place. Compare, pick, order. Delivered to your room.</p>
+  </header>
+
+  <section class="controls" aria-label="Filters">
+    <div class="hostel" role="group" aria-label="Your hostel">
+      <p class="small-label">Deliver to</p>
+      <div class="toggle" id="hostel-toggle"></div>
+    </div>
+    <label class="small-label" for="search">Search</label>
+    <input id="search" type="search" placeholder="brownie, chai, lamp..." autocomplete="off">
+    <div class="chips" id="category-chips" role="group" aria-label="Categories"></div>
+    <div class="chips sub" id="sub-chips" role="group" aria-label="Food types"></div>
+  </section>
+
+  <main>
+    <p class="count" id="count" aria-live="polite"></p>
+    <div id="results"></div>
+
+    <section id="compare" class="compare" hidden>
+      <button class="back" id="compare-back" type="button">&larr; Back</button>
+      <h2 id="compare-title"></h2>
+      <p class="compare-note" id="compare-note"></p>
+      <div id="compare-body"></div>
+    </section>
+  </main>
+
+  <section class="help" id="help">
+    <h2>Something broken? Question?</h2>
+    <p id="support-note"></p>
+    <form id="bug-form" class="form" autocomplete="off">
+      <label>What happened?<textarea name="message" rows="4" required maxlength="1000"></textarea></label>
+      <label>Your name (optional)<input name="name" maxlength="60"></label>
+      <label>Phone or email, so we can reply (optional)<input name="contact" maxlength="80"></label>
+      <label>Is it about a stall? Which one (optional)<input name="stall" maxlength="80"></label>
+      <button class="order" type="submit">Send</button>
+      <p class="form-msg" id="bug-msg" aria-live="polite"></p>
+    </form>
+  </section>
+
+  <footer class="foot">
+    <p>No payments on this site. Order here, then the stall confirms and you settle with them directly.</p>
+    <p id="stock-note"></p>
+  </footer>
+
+  <div class="sheet" id="sheet" hidden>
+    <div class="sheet-body" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+      <button class="close" id="sheet-close" type="button" aria-label="Close">Close</button>
+      <h2 id="sheet-title"></h2>
+      <p class="sheet-sub" id="sheet-sub"></p>
+      <form id="order-form" class="form" autocomplete="off"></form>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
