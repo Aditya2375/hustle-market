@@ -376,6 +376,7 @@ var hm = { el: el, clock: clock, drawOrders: drawOrders, root: null, lastMs: 0, 
 
 function screen(which) {
   document.getElementById("login").hidden = which !== "login";
+  var sg = document.getElementById("signup"); if (sg) sg.hidden = which !== "signup";
   document.getElementById("setup").hidden = which !== "setup";
   document.getElementById("board").hidden = which !== "board";
   var pg = document.getElementById("pending"); if (pg) pg.hidden = which !== "pending";
@@ -401,6 +402,11 @@ function showSetup(stall, first) {
   document.getElementById("setup-kicker").textContent = first ? "Set up your stall" : "Your stall";
   f.elements.owner.value = stall.owner || "";
   f.elements.upi.value = stall.upi || "";
+  f.elements.category.value = stall.category || "";
+  f.elements.itemList.value = stall.itemList || "";
+  f.elements.delivery.value = stall.delivery || "";
+  f.elements.extraFields.value = stall.extraFields || "";
+  f.elements.notes.value = stall.notes || "";
   f.elements.upi2.value = "";
   f.elements.ownerMobile.value = stall.ownerMobile || "";
   f.elements.ownerEmail.value = stall.ownerEmail || "";
@@ -439,10 +445,58 @@ function paintHeader(name) {
   document.getElementById("bmenu-who").textContent = "Signed in as " + name;
 }
 
+function shrinkImage(file) {
+  return new Promise(function (ok, no) {
+    var img = new Image(), rd = new FileReader();
+    rd.onerror = function () { no(new Error("bad")); };
+    rd.onload = function () { img.src = rd.result; };
+    img.onload = function () {
+      var w = Math.min(900, img.width), h = Math.round(img.height * w / img.width);
+      var cv = document.createElement("canvas"); cv.width = w; cv.height = h;
+      cv.getContext("2d").drawImage(img, 0, 0, w, h);
+      var q = 0.6, out = cv.toDataURL("image/jpeg", q);
+      while (out.length > 130000 && q > 0.2) { q -= 0.1; out = cv.toDataURL("image/jpeg", q); }
+      if (out.length > 130000) no(new Error("big")); else ok(out);
+    };
+    img.onerror = function () { no(new Error("bad")); };
+    rd.readAsDataURL(file);
+  });
+}
+
+function proofForm(st) {
+  var wrap = el("div", "proof");
+  if (st.proof) {
+    wrap.appendChild(el("p", "form-msg", "Proof received. The site team will confirm your payment shortly."));
+    return wrap;
+  }
+  var f = document.createElement("form"); f.className = "form proof-form"; f.noValidate = true;
+  var l1 = el("label", "field", "UPI transaction ID"); var utr = document.createElement("input"); utr.maxLength = 30; utr.placeholder = "12-digit reference from your payment receipt"; utr.autocomplete = "off"; utr.spellcheck = false; l1.appendChild(utr);
+  var l2 = el("label", "field", "Payment screenshot"); var fi = document.createElement("input"); fi.type = "file"; fi.accept = "image/*"; l2.appendChild(fi);
+  var btn = el("button", "order", "Send proof"); btn.type = "submit";
+  var msg = el("p", "form-msg", ""); msg.setAttribute("aria-live", "polite");
+  f.appendChild(l1); f.appendChild(l2); f.appendChild(btn); f.appendChild(msg);
+  f.onsubmit = function (e) {
+    e.preventDefault();
+    if (!/^[A-Za-z0-9]{6,30}$/.test(utr.value.trim())) { msg.className = "form-msg err"; msg.textContent = "Enter the UPI transaction ID from your receipt."; return; }
+    if (!fi.files || !fi.files[0]) { msg.className = "form-msg err"; msg.textContent = "Attach a screenshot of the payment."; return; }
+    btn.disabled = true; msg.className = "form-msg"; msg.textContent = "Sending...";
+    shrinkImage(fi.files[0]).then(function (shot) { return api({ action: "payproof", utr: utr.value.trim(), shot: shot }); }).then(function (r) {
+      if (!r.ok) throw new Error(r.error || "failed");
+      refresh();
+    }).catch(function (er) { btn.disabled = false; msg.className = "form-msg err"; msg.textContent = (er && er.message && er.message !== "failed" && er.message !== "big" && er.message !== "bad") ? er.message : "Could not send. Try a smaller screenshot or try again."; });
+  };
+  wrap.appendChild(f);
+  return wrap;
+}
+
 function showPending(st) {
   var box = document.getElementById("pending-pay"); box.textContent = "";
   document.getElementById("pending-msg").textContent = "";
-  document.getElementById("pending-title").textContent = st.name + " is set up";
+  var banned = st.status === "banned";
+  document.getElementById("pending-title").textContent = banned ? st.name + " is disabled" : st.name + " is set up";
+  document.getElementById("pending-lede").textContent = banned ? "This stall has been removed from Hustle Market. It cannot take orders." : "Your stall goes live as soon as the listing fee is confirmed. Customers cannot see it until then.";
+  document.getElementById("pending-refresh").hidden = banned;
+  if (banned) { screen("pending"); return; }
   if (st.fee && st.fee.upi) {
     var f = st.fee, link = "upi://pay?pa=" + encodeURIComponent(f.upi) + "&pn=" + encodeURIComponent(f.payee) + "&am=" + encodeURIComponent(String(f.amount)) + "&cu=INR&tn=" + encodeURIComponent("Listing fee");
     box.appendChild(el("p", "kicker", "Listing fee"));
@@ -459,7 +513,8 @@ function showPending(st) {
     box.appendChild(cv);
     box.appendChild(el("p", "pay-id", f.upi));
     var a = el("a", "order pay-open", "Open in UPI app"); a.href = link; box.appendChild(a);
-    box.appendChild(el("p", "dash-p", "After you pay, your stall goes live once the payment is confirmed by the site team. This page updates when it does."));
+    box.appendChild(el("p", "dash-p", "After you pay, send proof below. Your stall goes live once the site team confirms the payment. This page updates when it does."));
+    box.appendChild(proofForm(st));
   } else {
     box.appendChild(el("p", "dash-p", "The site team will confirm your listing shortly. Check back here."));
   }
@@ -474,6 +529,7 @@ function refresh() {
     lastStall = res.stall;
     lastOrders = res.orders;
     if (res.stall.setup !== false) checkNewOrders(res.orders);
+    if (res.stall.status === "banned") { showPending(res.stall); return; }
     if (res.stall.setup === false && !editing) { showSetup(res.stall, true); return; }
     if (editing) return;
     if (res.stall.setup !== false && res.stall.status && res.stall.status !== "live") { showPending(res.stall); return; }
@@ -525,6 +581,39 @@ function refresh() {
 }
 
 hm.root = document.getElementById("ext");
+function deviceKey() {
+  var id = localStorage.getItem("deviceId");
+  if (!id) { var b = new Uint8Array(12); crypto.getRandomValues(b); id = Array.prototype.map.call(b, function (x) { return ("0" + x.toString(16)).slice(-2); }).join(""); localStorage.setItem("deviceId", id); }
+  return id;
+}
+document.getElementById("to-signup").addEventListener("click", function () {
+  document.getElementById("signup-form").hidden = false; document.getElementById("signup-done").hidden = true;
+  document.getElementById("signup-msg").textContent = ""; screen("signup");
+});
+document.getElementById("signup-back").addEventListener("click", function () { screen("login"); });
+document.getElementById("signup-form").addEventListener("submit", function (e) {
+  e.preventDefault();
+  var f = e.target, msg = document.getElementById("signup-msg"), btn = document.getElementById("signup-submit");
+  btn.disabled = true; msg.className = "form-msg"; msg.textContent = "Creating...";
+  fetch(cfg.backend.url, { method: "POST", body: JSON.stringify({ action: "signup", name: f.elements.name.value.trim(), website: f.elements.website.value, device: deviceKey() }) })
+    .then(function (r) { return r.json(); })
+    .then(function (r) {
+      btn.disabled = false;
+      if (!r.ok) { msg.className = "form-msg err"; msg.textContent = r.error || "Could not sign up. Try again."; return; }
+      login = { login: r.name, code: r.code };
+      document.getElementById("signup-done-name").textContent = r.name;
+      document.getElementById("signup-code").textContent = r.code;
+      f.hidden = true; document.getElementById("signup-done").hidden = false;
+    }).catch(function () { btn.disabled = false; msg.className = "form-msg err"; msg.textContent = "Could not sign up. Try again in a minute."; });
+});
+document.getElementById("signup-copy").addEventListener("click", function () {
+  var b = this, t = document.getElementById("signup-code").textContent;
+  if (navigator.clipboard) navigator.clipboard.writeText(t).then(function () { b.textContent = "Copied"; setTimeout(function () { b.textContent = "Copy"; }, 1500); });
+});
+document.getElementById("signup-go").addEventListener("click", function () {
+  localStorage.setItem("hmLogin", JSON.stringify(login));
+  editing = false; refresh();
+});
 document.getElementById("login-form").addEventListener("submit", function (e) {
   e.preventDefault();
   var f = e.target;
@@ -547,7 +636,7 @@ document.getElementById("setup-form").addEventListener("submit", function (e) {
   if (upiA.toLowerCase() !== upiB.toLowerCase()) { msg.className = "form-msg err"; msg.textContent = "The two UPI IDs do not match. Check them carefully."; return; }
   var team = Array.prototype.map.call(document.querySelectorAll("#setup-team .team-row"), function (r) { var o = {}; Array.prototype.forEach.call(r.querySelectorAll("input"), function (i) { o[i.dataset.k] = i.value.trim(); }); return o; });
   btn.disabled = true; msg.className = "form-msg"; msg.textContent = "Saving...";
-  api({ action: "setprofile", owner: f.elements.owner.value.trim(), ownerMobile: f.elements.ownerMobile.value.trim(), ownerEmail: f.elements.ownerEmail.value.trim(), team: team, upi: upiA, hostels: hostels, maxQty: Number(f.elements.maxQty.value) }).then(function (r) {
+  api({ action: "setprofile", category: f.elements.category.value, itemList: f.elements.itemList.value.trim(), delivery: f.elements.delivery.value, extraFields: f.elements.extraFields.value.trim(), notes: f.elements.notes.value.trim(), owner: f.elements.owner.value.trim(), ownerMobile: f.elements.ownerMobile.value.trim(), ownerEmail: f.elements.ownerEmail.value.trim(), team: team, upi: upiA, hostels: hostels, maxQty: Number(f.elements.maxQty.value) }).then(function (r) {
     if (!r.ok) throw new Error(r.error || "failed");
     editing = false; firstLoad = true;
     return refresh();
