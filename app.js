@@ -442,6 +442,17 @@ function drawResults() {
   box.textContent = "";
   var items = visibleItems();
 
+  var anyLive = data.items.some(function (i) { return liveStall(stallById(i.stall)); });
+  if (!anyLive) {
+    document.getElementById("count").textContent = "Opening soon";
+    var soon = el("div", "soon");
+    soon.appendChild(el("p", "kicker", "Stalls on the way"));
+    soon.appendChild(el("h2", "soon-title", "The first stalls are setting up."));
+    soon.appendChild(el("p", "soon-lede", "Students from Uniworld 1 and 2 are getting their menus ready. They will appear here by themselves, no need to refresh. Check back in a little while."));
+    box.appendChild(soon);
+    return;
+  }
+
   var count = document.getElementById("count");
   count.textContent = state.hostel
     ? items.length + " item" + (items.length === 1 ? "" : "s") + " delivering to " + state.hostel
@@ -756,6 +767,7 @@ function drawStats() {
   var box = document.getElementById("stats");
   box.textContent = "";
   var live = data.stalls.filter(liveStall);
+  box.hidden = live.length === 0;
   var rows = [[live.length, "Stalls"], [data.items.filter(function (i) { return liveStall(stallById(i.stall)); }).length, "Items"], [data.hostels.length, "Hostels"]];
   rows.forEach(function (r) {
     var li = el("li");
