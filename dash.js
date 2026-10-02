@@ -378,8 +378,9 @@ function screen(which) {
   document.getElementById("login").hidden = which !== "login";
   document.getElementById("setup").hidden = which !== "setup";
   document.getElementById("board").hidden = which !== "board";
+  var pg = document.getElementById("pending"); if (pg) pg.hidden = which !== "pending";
   var scx = document.getElementById("stall-complaint"); if (scx) scx.hidden = which !== "board";
-  var inn = which === "setup" || which === "board";
+  var inn = which === "setup" || which === "board" || which === "pending";
   document.getElementById("acct-business").hidden = !inn;
   document.getElementById("dash-kicker").textContent = which === "setup" ? "Setup" : which === "board" ? "Stall dashboard" : "Stall dashboard";
 }
@@ -438,6 +439,33 @@ function paintHeader(name) {
   document.getElementById("bmenu-who").textContent = "Signed in as " + name;
 }
 
+function showPending(st) {
+  var box = document.getElementById("pending-pay"); box.textContent = "";
+  document.getElementById("pending-msg").textContent = "";
+  document.getElementById("pending-title").textContent = st.name + " is set up";
+  if (st.fee && st.fee.upi) {
+    var f = st.fee, link = "upi://pay?pa=" + encodeURIComponent(f.upi) + "&pn=" + encodeURIComponent(f.payee) + "&am=" + encodeURIComponent(String(f.amount)) + "&cu=INR&tn=" + encodeURIComponent("Listing fee");
+    box.appendChild(el("p", "kicker", "One-time listing fee"));
+    box.appendChild(el("h3", "pay-amt", "\u20b9" + f.amount));
+    box.appendChild(el("p", "pay-to", "to " + f.payee));
+    var cv = document.createElement("canvas"); cv.className = "qr"; cv.setAttribute("role", "img"); cv.setAttribute("aria-label", "UPI QR code for the listing fee");
+    try {
+      var q = qrcode(0, "M"); q.addData(link); q.make();
+      var n = q.getModuleCount(), cell = 6, quiet = 3, size = (n + quiet * 2) * cell;
+      cv.width = size; cv.height = size;
+      var g = cv.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, size, size); g.fillStyle = "#15100e";
+      for (var r = 0; r < n; r++) for (var c = 0; c < n; c++) if (q.isDark(r, c)) g.fillRect((c + quiet) * cell, (r + quiet) * cell, cell, cell);
+    } catch (e) {}
+    box.appendChild(cv);
+    box.appendChild(el("p", "pay-id", f.upi));
+    var a = el("a", "order pay-open", "Open in UPI app"); a.href = link; box.appendChild(a);
+    box.appendChild(el("p", "dash-p", "After you pay, your stall goes live once the payment is confirmed by the site team. This page updates when it does."));
+  } else {
+    box.appendChild(el("p", "dash-p", "The site team will confirm your listing shortly. Check back here."));
+  }
+  screen("pending");
+}
+
 function refresh() {
   return api({ action: "orders" }).then(async function (res) {
     if (!res.ok) throw new Error(res.error || "failed");
@@ -448,6 +476,7 @@ function refresh() {
     if (res.stall.setup !== false) checkNewOrders(res.orders);
     if (res.stall.setup === false && !editing) { showSetup(res.stall, true); return; }
     if (editing) return;
+    if (res.stall.setup !== false && res.stall.status && res.stall.status !== "live") { showPending(res.stall); return; }
     screen("board");
     if (res.overview && !view) {
       try {
@@ -527,6 +556,7 @@ document.getElementById("setup-form").addEventListener("submit", function (e) {
     msg.textContent = err.message && err.message !== "failed" ? err.message : "Could not save. Try again.";
   });
 });
+document.getElementById("pending-refresh").addEventListener("click", function () { var m = document.getElementById("pending-msg"); m.className = "form-msg"; m.textContent = "Checking..."; refresh().then(function () { var pg = document.getElementById("pending"); if (pg && !pg.hidden) m.textContent = "Not confirmed yet. It can take a few minutes."; }).catch(function () { m.className = "form-msg err"; m.textContent = "Could not check. Try again."; }); });
 document.getElementById("setup-cancel").addEventListener("click", function () { editing = false; refresh(); });
 document.getElementById("bmenu-settings").addEventListener("click", function () {
   if (lastStall && lastStall.id !== "*") showSetup(lastStall, false);
