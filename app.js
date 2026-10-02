@@ -48,7 +48,7 @@ function stallById(id) {
 
 // A stall shows only after payment is verified. "pending" stalls stay hidden.
 function liveStall(stall) {
-  return stall.status !== "pending";
+  return stall.status !== "pending" && stall.status !== "banned";
 }
 
 function rupees(n) {
