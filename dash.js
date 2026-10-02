@@ -445,7 +445,7 @@ function showPending(st) {
   document.getElementById("pending-title").textContent = st.name + " is set up";
   if (st.fee && st.fee.upi) {
     var f = st.fee, link = "upi://pay?pa=" + encodeURIComponent(f.upi) + "&pn=" + encodeURIComponent(f.payee) + "&am=" + encodeURIComponent(String(f.amount)) + "&cu=INR&tn=" + encodeURIComponent("Listing fee");
-    box.appendChild(el("p", "kicker", "One-time listing fee"));
+    box.appendChild(el("p", "kicker", "Listing fee"));
     box.appendChild(el("h3", "pay-amt", "\u20b9" + f.amount));
     box.appendChild(el("p", "pay-to", "to " + f.payee));
     var cv = document.createElement("canvas"); cv.className = "qr"; cv.setAttribute("role", "img"); cv.setAttribute("aria-label", "UPI QR code for the listing fee");
