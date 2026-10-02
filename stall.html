@@ -3,7 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self' https://script.google.com https://script.googleusercontent.com; base-uri 'none'; form-action 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src data:; connect-src 'self' https://script.google.com https://script.googleusercontent.com; base-uri 'none'; form-action 'self'">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#15100e">
   <meta name="referrer" content="no-referrer">
   <meta name="robots" content="noindex, nofollow">
   <title>Stall orders</title>
@@ -11,13 +13,13 @@
 </head>
 <body class="dash">
   <p class="demo-banner" id="demo-banner" hidden>DEMO. Orders here come from this browser only.</p>
-  <header class="top dash-top">
+  <header class="top dash-top"><div class="wrap">
     <p class="kicker">Live orders</p>
     <h1 class="dash-title" id="stall-name">Stall login</h1>
     <p class="tagline" id="status-line"></p>
     <button class="close signout" id="signout" type="button" hidden>Sign out</button>
-  </header>
-  <section class="login" id="login" hidden>
+  </div></header>
+  <section class="login wrap" id="login" hidden>
     <form id="login-form" class="form" autocomplete="off">
       <label>Stall name<input name="login" required maxlength="60" autocapitalize="off"></label>
       <label>Access code<input name="code" required maxlength="30" autocapitalize="characters" spellcheck="false"></label>
@@ -25,7 +27,7 @@
       <p class="form-msg" id="login-msg" aria-live="polite"></p>
     </form>
   </section>
-  <main id="board" hidden>
+  <main id="board" class="wrap" hidden>
     <p class="count" id="new-count" aria-live="polite"></p>
     <div id="orders"></div>
     <h2 class="dash-h">Your items</h2>
