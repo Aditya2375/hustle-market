@@ -18,6 +18,30 @@ function el(tag, className, text) {
   return node;
 }
 
+var cmpIds = [];
+try { cmpIds = JSON.parse(sessionStorage.getItem("hmCmp") || "[]"); if (!Array.isArray(cmpIds)) cmpIds = []; } catch (e) { cmpIds = []; }
+function saveCmp() { try { sessionStorage.setItem("hmCmp", JSON.stringify(cmpIds)); } catch (e) {} }
+function toggleCmp(id) {
+  var i = cmpIds.indexOf(id);
+  if (i > -1) cmpIds.splice(i, 1); else cmpIds.push(id);
+  saveCmp();
+}
+function cmpItems() {
+  return cmpIds.map(function (id) {
+    return data.items.filter(function (i) { return i.id === id; })[0];
+  }).filter(function (i) { return i && deliversHere(stallById(i.stall)); });
+}
+function drawTray() {
+  var tray = document.getElementById("cmp-tray");
+  if (!tray) return;
+  var n = cmpItems().length;
+  var onCompare = window.location.hash === "#compare";
+  tray.hidden = !(n > 0 && state.hostel && role() === "customer" && !onCompare);
+  document.getElementById("cmp-count").textContent = n + " selected";
+  document.getElementById("cmp-go").textContent = n > 1 ? "Compare " + n : "Add one more";
+  document.getElementById("cmp-go").classList.toggle("off", n < 2);
+}
+
 function stallById(id) {
   return data.stalls.filter(function (s) { return s.id === id; })[0];
 }
@@ -439,18 +463,35 @@ function drawResults() {
     card.appendChild(facts);
 
     var actions = el("div", "actions");
+    var on = cmpIds.indexOf(item.id) > -1;
+    var tg = el("button", "cmp-toggle" + (on ? " on" : ""), on ? "Added \u2713" : "+ Compare");
+    tg.type = "button"; tg.setAttribute("aria-pressed", on ? "true" : "false");
+    tg.addEventListener("click", function () {
+      toggleCmp(item.id);
+      var now = cmpIds.indexOf(item.id) > -1;
+      tg.className = "cmp-toggle" + (now ? " on" : "");
+      tg.textContent = now ? "Added \u2713" : "+ Compare";
+      tg.setAttribute("aria-pressed", now ? "true" : "false");
+      drawTray();
+    });
+    actions.appendChild(tg);
     actions.appendChild(orderButton(item));
 
     var others = peers(item);
     if (others.length > 1) {
-      var cmp = el("a", "compare-link", "Compare " + others.length + " stalls");
-      cmp.href = "#compare/" + item.compare;
+      var cmp = el("a", "compare-link", "Compare all " + others.length + " stalls");
+      cmp.href = "#compare";
+      cmp.addEventListener("click", function () {
+        others.forEach(function (o) { if (cmpIds.indexOf(o.id) < 0) cmpIds.push(o.id); });
+        saveCmp();
+      });
       actions.appendChild(cmp);
     }
     card.appendChild(actions);
 
     box.appendChild(card);
   });
+  drawTray();
 }
 
 // Typographic stand-in for a photo: soft tinted block with the item's first letter
@@ -510,6 +551,64 @@ function drawCompare(key) {
   });
 }
 
+function drawCompareSel() {
+  var rows = cmpItems();
+  var body = document.getElementById("compare-body");
+  body.textContent = ""; body.className = "cmp-wrap";
+  document.getElementById("compare-title").textContent = "Your comparison";
+  var note = document.getElementById("compare-note");
+  if (rows.length < 2) {
+    note.textContent = rows.length ? "Pick at least one more item to compare." : "Nothing selected yet.";
+    var back = el("p", "empty", "Tap + Compare on any item, as many as you like.");
+    body.appendChild(back);
+    return;
+  }
+  note.textContent = rows.length + " items from stalls delivering to " + state.hostel + ". Scroll sideways to see them all.";
+  var cheapest = {};
+  rows.forEach(function (it) {
+    if (!it.inStock) return;
+    var k = it.compare, v = perUnitNumber(it);
+    if (cheapest[k] === undefined || v < cheapest[k]) cheapest[k] = v;
+  });
+  var table = el("table", "cmp");
+  var defs = [
+    ["Stall", function (it, td) { td.textContent = stallById(it.stall).name; td.className = "cmp-stall"; }],
+    ["Item", function (it, td) { td.textContent = it.name; td.className = "cmp-name"; }],
+    ["Price", function (it, td) { td.textContent = rupees(it.price); td.className = "cmp-price"; }],
+    ["Pack", function (it, td) { td.textContent = it.packLabel; }],
+    ["Per unit", function (it, td) {
+      td.textContent = perUnit(it);
+      var same = rows.filter(function (r) { return r.compare === it.compare; }).length > 1;
+      if (same && it.inStock && perUnitNumber(it) === cheapest[it.compare]) td.appendChild(el("span", "best", "Best value"));
+    }],
+    ["Delivery", function (it, td) { td.textContent = it.freeDelivery ? "Free" : "Paid"; td.className = it.freeDelivery ? "yes" : "no"; }],
+    ["Stock", function (it, td) { td.textContent = it.inStock ? "In stock" : "Out of stock"; td.className = it.inStock ? "yes" : "no"; }]
+  ];
+  var tb = el("tbody");
+  defs.forEach(function (d) {
+    var tr = el("tr");
+    tr.appendChild(el("th", "", d[0]));
+    rows.forEach(function (it) { var td = el("td"); d[1](it, td); tr.appendChild(td); });
+    tb.appendChild(tr);
+  });
+  var ar = el("tr", "cmp-act");
+  ar.appendChild(el("th", "", ""));
+  rows.forEach(function (it) {
+    var td = el("td");
+    td.appendChild(orderButton(it));
+    var rm = el("button", "linkbtn", "Remove"); rm.type = "button";
+    rm.addEventListener("click", function () { toggleCmp(it.id); drawCompareSel(); drawTray(); });
+    td.appendChild(rm);
+    ar.appendChild(td);
+  });
+  tb.appendChild(ar);
+  table.appendChild(tb);
+  body.appendChild(table);
+  var clr = el("button", "linkbtn cmp-clear", "Clear all"); clr.type = "button";
+  clr.addEventListener("click", function () { cmpIds = []; saveCmp(); drawCompareSel(); });
+  body.appendChild(clr);
+}
+
 // ---------- page switching (results <-> compare) ----------
 
 function showRoute() {
@@ -521,8 +620,8 @@ function showRoute() {
   if (hash === "#business") { setRole("business"); return; }
   if (!role()) return;
 
-  if (hash.indexOf("#compare/") === 0 && state.hostel && role() === "customer") {
-    drawCompare(hash.slice(9));
+  if ((hash === "#compare" || hash.indexOf("#compare/") === 0) && state.hostel && role() === "customer") {
+    if (hash === "#compare") drawCompareSel(); else { document.getElementById("compare-body").className = "grid"; drawCompare(hash.slice(9)); }
     compare.hidden = false;
     results.hidden = true;
     count.hidden = true;
@@ -532,6 +631,9 @@ function showRoute() {
     results.hidden = false;
     count.hidden = false;
   }
+  var hero = document.querySelector(".hero"); if (hero) hero.hidden = !compare.hidden;
+  var cats = document.querySelector("nav.cats"); if (cats) cats.hidden = !compare.hidden;
+  drawTray();
 }
 
 // ---------- account menus ----------
@@ -676,6 +778,7 @@ document.getElementById("search").addEventListener("input", function (e) {
   drawResults();
 });
 
+document.getElementById("cmp-clear").addEventListener("click", function () { cmpIds = []; saveCmp(); drawResults(); });
 document.getElementById("compare-back").addEventListener("click", function () {
   window.location.hash = "";
 });
