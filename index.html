@@ -87,6 +87,7 @@
     </header>
 
     <div id="view-customer">
+      <div class="wrap" id="order-notices" aria-live="polite"></div>
       <section class="hero">
         <div class="wrap hero-in">
           <div>
@@ -193,7 +194,11 @@
           <h2 class="setup-title" id="setup-title">A few details before you start</h2>
           <p class="dash-p" id="setup-lede">Customers pay you directly. Your UPI ID makes the payment QR code at checkout. Nothing here is shown publicly except your stall name, the hostels you deliver to, and your items.</p>
           <label class="field">Owner name<input name="owner" required maxlength="60" autocomplete="off" placeholder="Who runs this stall"></label>
-          <label class="field">UPI ID<input name="upi" required maxlength="100" autocapitalize="off" spellcheck="false" autocomplete="off" placeholder="name@bank"><small class="help-line">Customers scan a QR code that pays this ID. Check it carefully. Money goes straight to it.</small></label>
+          <label class="field">Owner mobile<input name="ownerMobile" required inputmode="numeric" maxlength="10" autocomplete="off" placeholder="10-digit number"><small class="help-line">If an order is cancelled, customers are shown this number so they can sort it out with you.</small></label>
+          <label class="field">Owner email<input name="ownerEmail" type="email" required maxlength="120" autocapitalize="off" autocomplete="off" placeholder="name@gmail.com"></label>
+          <fieldset class="field"><legend>The rest of your team (4 more people)</legend><p class="help-line">A stall is a team of 5. Each person needs their own mobile and email. One team, one stall: anyone already on another stall cannot be added.</p><div id="setup-team"></div></fieldset>
+          <label class="field">UPI ID<input name="upi" required maxlength="100" autocapitalize="off" spellcheck="false" autocomplete="off" placeholder="name@bank"><small class="help-line">Customers pay this ID directly. Check it twice: a typo sends their money to someone else.</small></label>
+          <label class="field">Type the UPI ID again<input name="upi2" required maxlength="100" autocapitalize="off" spellcheck="false" autocomplete="off" placeholder="name@bank"></label>
           <fieldset class="field"><legend>Hostels you deliver to</legend><div class="check-row" id="setup-hostels"></div></fieldset>
           <label class="field">Most one customer can order at once<select name="maxQty" id="setup-max"></select></label>
           <button class="order" type="submit" id="setup-submit">Save and open dashboard</button>
@@ -244,7 +249,7 @@
         </div>
       </main>
       <footer class="foot">
-        <p>Keep this page open. It refreshes every 15 seconds. Your access code is for your stall only. Do not share it.</p>
+        <p>Keep this page open. It refreshes every 15 seconds and plays a sound when a new order arrives (tap the page once to allow sound). Your access code is for your stall only. Do not share it.</p>
         <p>Problem? Use the help form in the customer view.</p>
       </footer>
     </div>
