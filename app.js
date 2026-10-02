@@ -340,6 +340,7 @@ function openOrder(item) {
       custom: custom
     }).then(function (res) {
       if (!res.ok) throw new Error(res.error || "failed");
+      rememberOrder(res.id, stall.name, item.name);
       var shownHostel = who.hostel;
       var shownRoom = who.room;
       form.textContent = "";
@@ -993,3 +994,41 @@ function startTour(force) {
   }
   document.body.appendChild(wrap); paint();
 }
+
+// ---------- order complaints (customer) ----------
+var CUST_TYPES = ["Paid but not approved", "Wrong order", "Order not delivered", "Stall not responding", "Other"];
+function rememberOrder(id, stallName, itemName) {
+  if (!id || id === "HM-0000") return;
+  try {
+    var list = JSON.parse(localStorage.getItem("hmOrders") || "[]");
+    list.unshift({ id: id, stall: stallName, item: itemName });
+    localStorage.setItem("hmOrders", JSON.stringify(list.slice(0, 20)));
+  } catch (e) {}
+  drawComplaintForm();
+}
+function drawComplaintForm() {
+  var f = document.getElementById("complaint-form");
+  if (!f) return;
+  var os = f.elements.orderId; os.textContent = "";
+  var list = []; try { list = JSON.parse(localStorage.getItem("hmOrders") || "[]"); } catch (e) {}
+  var none = el("option", "", list.length ? "Not about one order" : "No orders yet on this device"); none.value = ""; os.appendChild(none);
+  list.forEach(function (o) { var op = el("option", "", o.id + " \u00b7 " + o.item + " \u00b7 " + o.stall); op.value = o.id; os.appendChild(op); });
+  var ts = f.elements.type; if (!ts.options.length) CUST_TYPES.forEach(function (t) { var op = el("option", "", t); op.value = t; ts.appendChild(op); });
+}
+drawComplaintForm();
+document.getElementById("complaint-form").addEventListener("submit", function (e) {
+  e.preventDefault();
+  var f = e.target, msg = document.getElementById("complaint-msg"), me = profile();
+  if (!me) { msg.className = "form-msg err"; msg.textContent = "Sign in first."; return; }
+  msg.className = "form-msg"; msg.textContent = "Sending...";
+  send({ action: "complaint", side: "customer", name: me.name, mobile: me.mobile, orderId: f.elements.orderId.value,
+    type: f.elements.type.value, message: f.elements.message.value, device: deviceId(), website: "" })
+    .then(function (res) {
+      if (!res.ok) throw new Error(res.error || "failed");
+      f.elements.message.value = "";
+      msg.textContent = "Got it. Your complaint is logged" + (res.id ? " (" + res.id + ")" : "") + " and will be handled." + (res.demo ? " (Demo mode: nothing was really sent.)" : "");
+    }).catch(function (err) {
+      msg.className = "form-msg err";
+      msg.textContent = (err && err.message && err.message !== "failed") ? err.message : "Could not send. Try again in a minute.";
+    });
+});
