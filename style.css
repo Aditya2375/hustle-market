@@ -401,3 +401,5 @@ div.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px,
 .inline-edit input { width: 100%; padding: 12px 14px; border: 1px solid var(--line-2); border-radius: 0; background: transparent; color: var(--ink); font: inherit; font-size: 15px; }
 .inline-edit input:focus { outline: 0; border-color: var(--brass); }
 @media (max-width: 560px) { #stabs .tab { padding: 14px 6px; font-size: 9.5px; letter-spacing: .06em; flex: 1 1 auto; text-align: center; } #stabs .tab-n { margin-left: 4px; padding: 1px 5px; } }
+#p-overview .osec { margin-top: 40px; }
+#p-overview > .dash-p { margin-top: 16px; }
