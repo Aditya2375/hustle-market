@@ -995,7 +995,7 @@ document.getElementById("bug-form").addEventListener("submit", function (e) {
   msg.className = "form-msg";
   msg.textContent = "Sending...";
   send({
-    action: "bug", message: f.elements.message.value, name: f.elements.name.value,
+    action: "bug", message: "[" + f.elements.kind.value + "] " + f.elements.message.value, name: f.elements.name.value,
     contact: f.elements.contact.value, stall: f.elements.stall.value,
     page: location.href, agent: navigator.userAgent
   }).then(function (res) {
