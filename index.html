@@ -203,23 +203,46 @@
       </section>
       <div id="ext" class="wrap" hidden></div>
       <main id="board" class="wrap" hidden>
-        <p class="count" id="new-count" aria-live="polite"></p>
-        <div id="orders"></div>
-        <h2 class="dash-h">Your items</h2>
-        <p class="dash-p" id="stock-help"></p>
-        <div id="items"></div>
+        <div class="tabs" id="stabs" role="tablist"></div>
+        <div class="tabp" id="p-overview"></div>
+        <div class="tabp" id="p-orders" hidden>
+          <label class="osearch"><span class="sr">Search orders</span><input id="osearch" type="search" placeholder="Search by order number, item, name or hostel" maxlength="60" autocomplete="off"></label>
+          <p class="count" id="new-count" aria-live="polite"></p>
+          <div id="orders"></div>
+        </div>
+        <div class="tabp" id="p-menu" hidden>
+          <header class="osec-head"><div class="osec-t"><h2 class="osec-title">Your menu</h2><p class="osec-sub" id="stock-help"></p></div><span class="osec-count" id="menu-count">0</span></header>
+          <div class="menu-tools"><button class="order off quiet" type="button" id="all-out">Mark everything sold out</button><button class="order off quiet" type="button" id="all-in">Put everything back in stock</button></div>
+          <div id="items"></div>
+          <h2 class="dash-h">Add an item</h2>
+          <p class="dash-p">New items start as sold out. Switch one on when it is ready, and it appears on the site within about a minute.</p>
+          <form id="add-form" class="form add-form" autocomplete="off">
+            <label>Item name<input name="name" required maxlength="80"></label>
+            <label>Price in rupees<input name="price" required inputmode="numeric" maxlength="5" placeholder="e.g. 120"></label>
+            <label>Category<select name="category"></select></label>
+            <label>Type (optional)<input name="sub" maxlength="40" placeholder="e.g. Brownies"></label>
+            <label>Pack size (optional)<input name="packLabel" maxlength="40" placeholder="e.g. 4 pieces"></label>
+            <button class="order" type="submit">Add to menu</button>
+            <p class="form-msg" id="add-msg" aria-live="polite"></p>
+          </form>
+        </div>
+        <div class="tabp" id="p-settings" hidden></div>
+        <div class="tabp" id="p-support" hidden>
+          <h2 class="dash-h first">How it works</h2>
+          <ol class="steps"><li>A customer orders and pays your UPI ID directly. The site never touches the money.</li><li>The order shows under Awaiting payment check. Check your UPI app for the payment.</li><li>Approve it to see the customer's name, room and number. Make it, deliver it, mark it delivered.</li><li>Fake or unpaid? Tap Not received or Flag fake.</li></ol>
+          <section class="dash-complaint" id="stall-complaint">
+            <h2 class="dash-h">Problem with an order?</h2>
+            <p class="dash-p">Customer unreachable, suspected fake order, payment trouble. It is sent to the site team and handled. Site bugs go in the help form in the customer view.</p>
+            <form id="stall-complaint-form" class="form" autocomplete="off">
+              <label>Which order<select name="orderId"></select></label>
+              <label>What went wrong<select name="type"></select></label>
+              <label>Tell us what happened<textarea name="message" rows="4" required maxlength="1000"></textarea></label>
+              <button class="order" type="submit">Send</button>
+              <p class="form-msg" id="stall-complaint-msg" aria-live="polite"></p>
+            </form>
+          </section>
+        </div>
       </main>
-      <section class="wrap dash-complaint" id="stall-complaint">
-        <h2 class="dash-h">Problem with an order?</h2>
-        <p class="dash-p">Customer unreachable, suspected fake order, payment trouble. It is sent to the site team and handled. Site bugs go in the help form in the customer view.</p>
-        <form id="stall-complaint-form" class="form" autocomplete="off">
-          <label>Which order<select name="orderId"></select></label>
-          <label>What went wrong<select name="type"></select></label>
-          <label>Tell us what happened<textarea name="message" rows="4" required maxlength="1000"></textarea></label>
-          <button class="order" type="submit">Send</button>
-          <p class="form-msg" id="stall-complaint-msg" aria-live="polite"></p>
-        </form>
-      </section>
       <footer class="foot">
         <p>Keep this page open. It refreshes every 15 seconds. Your access code is for your stall only. Do not share it.</p>
         <p>Problem? Use the help form in the customer view.</p>
