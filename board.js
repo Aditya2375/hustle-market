@@ -2,7 +2,7 @@
 window.hmBoard = function (hm) {
 var root = hm.root, el = hm.el;
 var tab = "overview", last = null, filter = "";
-var NAMES = { overview: "Overview", ops: "Operations", orders: "Orders", manage: "Stalls and items" };
+var NAMES = { overview: "Overview", ops: "Operations", orders: "Orders", manage: "Stalls" };
 var bar = el("div", "tabs"), body = el("div", "tab-body");
 root.textContent = ""; root.appendChild(bar); root.appendChild(body);
 Object.keys(NAMES).forEach(function (k) {
