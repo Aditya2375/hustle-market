@@ -67,7 +67,7 @@ function drawOrders(orders, boxEl, opts) {
   orders = orders.slice().sort(function (a, b) { return a.time < b.time ? 1 : -1; });
   var waiting = orders.filter(function (o) { return AWAITING.indexOf(o.status) !== -1; });
   var making = orders.filter(function (o) { return o.status === "accepted"; });
-  var done = orders.filter(function (o) { return ["delivered", "cancelled", "flagged"].indexOf(o.status) !== -1; });
+  var done = orders.filter(function (o) { return ["delivered", "cancelled", "flagged", "expired"].indexOf(o.status) !== -1; });
 
   if (!boxEl) {
     var parts = [];
@@ -165,6 +165,36 @@ function statusBtn(opts, o, status, label, quiet) {
 }
 
 var ofilter = "";
+var knownWaiting = null, audioCtx = null;
+function unlockAudio() {
+  try { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); if (audioCtx.state === "suspended") audioCtx.resume(); } catch (e) {}
+}
+document.addEventListener("pointerdown", unlockAudio, { passive: true });
+function ding() {
+  try { if (navigator.vibrate) navigator.vibrate([200, 100, 200]); } catch (e) {}
+  try {
+    unlockAudio(); if (!audioCtx) return;
+    [[880, 0], [1175, 0.16]].forEach(function (n) {
+      var o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.type = "sine"; o.frequency.value = n[0]; o.connect(g); g.connect(audioCtx.destination);
+      var t = audioCtx.currentTime + n[1];
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.25, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
+      o.start(t); o.stop(t + 0.4);
+    });
+  } catch (e) {}
+}
+function checkNewOrders(orders) {
+  var ids = orders.filter(function (o) { return AWAITING.indexOf(o.status) !== -1; }).map(function (o) { return o.id; });
+  if (knownWaiting) {
+    var fresh = ids.filter(function (id) { return knownWaiting.indexOf(id) === -1; });
+    if (fresh.length) {
+      ding();
+      var line = document.getElementById("status-line");
+      if (line) line.textContent = fresh.length + " new order" + (fresh.length === 1 ? "" : "s") + " just came in";
+    }
+  }
+  knownWaiting = ids;
+}
 var tabNow = "overview";
 var TABS = [["overview", "Overview"], ["orders", "Orders"], ["menu", "Menu"], ["settings", "Settings"], ["support", "Support"]];
 var editId = "";
@@ -370,6 +400,21 @@ function showSetup(stall, first) {
   document.getElementById("setup-kicker").textContent = first ? "Set up your stall" : "Your stall";
   f.elements.owner.value = stall.owner || "";
   f.elements.upi.value = stall.upi || "";
+  f.elements.upi2.value = "";
+  f.elements.ownerMobile.value = stall.ownerMobile || "";
+  f.elements.ownerEmail.value = stall.ownerEmail || "";
+  var tb = document.getElementById("setup-team"); tb.textContent = "";
+  for (var ti = 0; ti < 4; ti++) {
+    var tm = (stall.team && stall.team[ti]) || {};
+    var row = el("div", "team-row");
+    row.appendChild(el("p", "team-n", "Member " + (ti + 2)));
+    [["name", "Full name", "text", 60], ["mobile", "10-digit mobile", "tel", 10], ["email", "Email", "email", 120]].forEach(function (c) {
+      var inp = document.createElement("input"); inp.type = c[2]; inp.maxLength = c[3]; inp.required = true; inp.placeholder = c[1]; inp.value = tm[c[0]] || ""; inp.dataset.k = c[0]; inp.autocomplete = "off"; inp.setAttribute("aria-label", "Member " + (ti + 2) + " " + c[1]);
+      if (c[0] === "mobile") inp.inputMode = "numeric";
+      row.appendChild(inp);
+    });
+    tb.appendChild(row);
+  }
   var hb = document.getElementById("setup-hostels"); hb.textContent = "";
   var picked = (stall.hostels && stall.hostels.length) ? stall.hostels : (cfg.hostels || []);
   (cfg.hostels || []).forEach(function (h) {
@@ -400,6 +445,7 @@ function refresh() {
     stallId = res.stall.id;
     lastStall = res.stall;
     lastOrders = res.orders;
+    if (res.stall.setup !== false) checkNewOrders(res.orders);
     if (res.stall.setup === false && !editing) { showSetup(res.stall, true); return; }
     if (editing) return;
     screen("board");
@@ -468,7 +514,11 @@ document.getElementById("setup-form").addEventListener("submit", function (e) {
   var hostels = Array.prototype.filter.call(f.querySelectorAll("#setup-hostels input"), function (i) { return i.checked; }).map(function (i) { return i.value; });
   if (!hostels.length) { msg.className = "form-msg err"; msg.textContent = "Pick at least one hostel you deliver to."; return; }
   btn.disabled = true; msg.className = "form-msg"; msg.textContent = "Saving...";
-  api({ action: "setprofile", owner: f.elements.owner.value.trim(), upi: f.elements.upi.value.trim(), hostels: hostels, maxQty: Number(f.elements.maxQty.value) }).then(function (r) {
+  var upiA = f.elements.upi.value.trim(), upiB = f.elements.upi2.value.trim();
+  if (upiA.toLowerCase() !== upiB.toLowerCase()) { msg.className = "form-msg err"; msg.textContent = "The two UPI IDs do not match. Check them carefully."; return; }
+  var team = Array.prototype.map.call(document.querySelectorAll("#setup-team .team-row"), function (r) { var o = {}; Array.prototype.forEach.call(r.querySelectorAll("input"), function (i) { o[i.dataset.k] = i.value.trim(); }); return o; });
+  btn.disabled = true; msg.className = "form-msg"; msg.textContent = "Saving...";
+  api({ action: "setprofile", owner: f.elements.owner.value.trim(), ownerMobile: f.elements.ownerMobile.value.trim(), ownerEmail: f.elements.ownerEmail.value.trim(), team: team, upi: upiA, hostels: hostels, maxQty: Number(f.elements.maxQty.value) }).then(function (r) {
     if (!r.ok) throw new Error(r.error || "failed");
     editing = false; firstLoad = true;
     return refresh();
