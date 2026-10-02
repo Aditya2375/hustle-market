@@ -56,7 +56,8 @@
         <a class="brand" href="./">Hustle <em>Market</em></a>
         <div class="search-box">
           <label class="sr" for="search">Search items and stalls</label>
-          <input id="search" type="search" placeholder="Search brownie, chai, lamp..." autocomplete="off">
+          <input id="search" type="search" placeholder="Search brownie, chai, lamp..." autocomplete="off" role="combobox" aria-expanded="false" aria-controls="suggest">
+          <div class="suggest" id="suggest" role="listbox" hidden></div>
         </div>
         <div class="hostel" role="group" aria-label="Your hostel">
           <span class="sr">Deliver to</span>
@@ -104,6 +105,12 @@
             <div id="compare-body" class="grid"></div>
           </section>
         </main>
+      </div>
+
+      <div class="cmp-tray" id="cmp-tray" hidden>
+        <span id="cmp-count"></span>
+        <button class="linkbtn" id="cmp-clear" type="button">Clear</button>
+        <a class="order" id="cmp-go" href="#compare">Compare</a>
       </div>
 
       <section class="help" id="help">
