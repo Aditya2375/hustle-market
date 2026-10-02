@@ -63,7 +63,8 @@ function drawOrders(orders, boxEl, opts) {
   opts = opts || {};
   var box = boxEl || document.getElementById("orders");
   box.textContent = "";
-  orders.sort(function (a, b) { return a.time < b.time ? 1 : -1; });
+  if (!boxEl && ofilter) orders = orders.filter(function (o) { return [o.id, o.itemName, o.name, o.hostel, o.room].join(" ").toLowerCase().indexOf(ofilter) !== -1; });
+  orders = orders.slice().sort(function (a, b) { return a.time < b.time ? 1 : -1; });
   var waiting = orders.filter(function (o) { return AWAITING.indexOf(o.status) !== -1; });
   var making = orders.filter(function (o) { return o.status === "accepted"; });
   var done = orders.filter(function (o) { return ["delivered", "cancelled", "flagged"].indexOf(o.status) !== -1; });
@@ -163,31 +164,181 @@ function statusBtn(opts, o, status, label, quiet) {
   return b;
 }
 
+var ofilter = "";
+var tabNow = "overview";
+var TABS = [["overview", "Overview"], ["orders", "Orders"], ["menu", "Menu"], ["settings", "Settings"], ["support", "Support"]];
+var editId = "";
+
+function setTab(k) {
+  tabNow = k;
+  TABS.forEach(function (t) { document.getElementById("p-" + t[0]).hidden = t[0] !== k; });
+  Array.prototype.forEach.call(document.getElementById("stabs").children, function (b) { b.classList.toggle("on", b.dataset.k === k); b.setAttribute("aria-selected", b.dataset.k === k ? "true" : "false"); });
+}
+
+function buildTabs() {
+  var bar = document.getElementById("stabs");
+  if (bar.children.length) return;
+  TABS.forEach(function (t) {
+    var b = el("button", "tab", t[1]); b.type = "button"; b.dataset.k = t[0]; b.setAttribute("role", "tab");
+    b.onclick = function () { setTab(t[0]); window.scrollTo(0, 0); };
+    var c = el("span", "tab-n"); c.id = "tn-" + t[0]; b.appendChild(c);
+    bar.appendChild(b);
+  });
+  setTab(tabNow);
+}
+
+function sameDay(iso) { return new Date(iso).toDateString() === new Date().toDateString(); }
+
+function stat(label, value, note) {
+  var s = el("div", "stat");
+  s.appendChild(el("p", "stat-n", String(value)));
+  s.appendChild(el("p", "stat-l", label));
+  if (note) s.appendChild(el("p", "stat-note", note));
+  return s;
+}
+
+function drawOverview() {
+  var box = document.getElementById("p-overview"); box.textContent = "";
+  var os = lastOrders || [], its = lastItems || [];
+  var wait = os.filter(function (o) { return AWAITING.indexOf(o.status) !== -1; });
+  var make = os.filter(function (o) { return o.status === "accepted"; });
+  var del = os.filter(function (o) { return o.status === "delivered"; });
+  var today = del.concat(make).filter(function (o) { return sameDay(o.time); });
+  var earn = today.reduce(function (a, o) { return a + (Number(o.total) || 0); }, 0);
+  var allEarn = del.concat(make).reduce(function (a, o) { return a + (Number(o.total) || 0); }, 0);
+  var out = its.filter(function (i) { return !i.inStock; });
+  var st = el("div", "stats");
+  st.appendChild(stat("Awaiting payment check", wait.length, wait.length ? "Needs you now" : "All clear"));
+  st.appendChild(stat("To make", make.length, "Payment approved"));
+  st.appendChild(stat("Approved today", rupee(earn), today.length + " order" + (today.length === 1 ? "" : "s")));
+  st.appendChild(stat("Approved in total", rupee(allEarn), del.length + " delivered"));
+  st.appendChild(stat("Items sold out", out.length, "of " + its.length + " on your menu"));
+  box.appendChild(st);
+  box.appendChild(el("p", "dash-p", "Amounts are the orders you approved, paid to your UPI ID directly. The site never holds money."));
+  var sec = section("Needs your attention", "What to do next.", 0, "tone-wait");
+  var n = 0;
+  function row(text, label, go) {
+    n++;
+    var r = el("div", "item-row"); r.appendChild(el("span", "item-row-name", text));
+    var b = el("button", "order", label); b.type = "button"; b.onclick = go; r.appendChild(b); sec.appendChild(r);
+  }
+  if (wait.length) row(wait.length + " order" + (wait.length === 1 ? "" : "s") + " waiting for a payment check", "Review", function () { setTab("orders"); });
+  if (make.length) row(make.length + " approved order" + (make.length === 1 ? "" : "s") + " to make and deliver", "Open", function () { setTab("orders"); });
+  if (out.length) row(out.length + " item" + (out.length === 1 ? " is" : "s are") + " sold out", "Manage menu", function () { setTab("menu"); });
+  if (!n) sec.appendChild(el("p", "empty", "Nothing needs you right now. New orders appear here by themselves."));
+  sec.querySelector(".osec-count").textContent = String(n);
+  box.appendChild(sec);
+  var tn = function (id, v) { var e = document.getElementById("tn-" + id); if (e) e.textContent = v ? String(v) : ""; };
+  tn("orders", wait.length);
+}
+
 function drawItems(items) {
   var box = document.getElementById("items");
   box.textContent = "";
-  var real = true;
-  document.getElementById("stock-help").textContent = real
-    ? "Out of something? Tap Sold out. It stops being orderable on the site within about a minute."
-    : "Demo mode: stock buttons are off.";
+  document.getElementById("menu-count").textContent = String(items.length);
+  document.getElementById("stock-help").textContent = "Out of something? Tap Sold out. Prices and names you change here update on the site within about a minute.";
+  if (!items.length) box.appendChild(el("p", "empty", "No items yet. Add your first one below."));
   items.forEach(function (it) {
-    var row = el("div", "item-row");
-    row.appendChild(el("span", "item-row-name", it.name + " \u00b7 \u20B9" + it.price));
+    var row = el("div", "item-row mrow" + (it.inStock ? "" : " is-out"));
+    if (editId === it.id) {
+      var f = el("form", "inline-edit");
+      var nm = el("input"); nm.value = it.name; nm.maxLength = 80; nm.required = true; nm.setAttribute("aria-label", "Item name");
+      var pr = el("input"); pr.value = String(it.price); pr.inputMode = "numeric"; pr.maxLength = 5; pr.required = true; pr.setAttribute("aria-label", "Price in rupees");
+      var sv = el("button", "order", "Save"); sv.type = "submit";
+      var cx = el("button", "order off quiet", "Cancel"); cx.type = "button"; cx.onclick = function () { editId = ""; drawItems(items); };
+      var em = el("p", "form-msg");
+      f.appendChild(nm); f.appendChild(pr); f.appendChild(sv); f.appendChild(cx); f.appendChild(em);
+      f.onsubmit = function (e) {
+        e.preventDefault();
+        var p = Number(pr.value);
+        if (!(p > 0) || Math.round(p) !== p) { em.className = "form-msg err"; em.textContent = "Price must be a whole number of rupees."; return; }
+        sv.disabled = true; em.className = "form-msg"; em.textContent = "Saving...";
+        api({ action: "stallitem", itemId: it.id, name: nm.value.trim(), price: p }).then(function (r) {
+          if (!r.ok) { sv.disabled = false; em.className = "form-msg err"; em.textContent = r.error === "Bad request" ? "Check the details and try again." : (r.error || "Could not save."); return; }
+          it.name = nm.value.trim(); it.price = p; editId = ""; drawItems(items); drawOverview();
+        }).catch(function () { sv.disabled = false; em.className = "form-msg err"; em.textContent = "Could not save. Try again."; });
+      };
+      row.appendChild(f); box.appendChild(row); return;
+    }
+    var main = el("div", "mrow-main");
+    main.appendChild(el("span", "item-row-name", it.name));
+    main.appendChild(el("span", "mrow-meta", "\u20B9" + it.price + (it.packLabel ? " \u00b7 " + it.packLabel : "") + (it.sub ? " \u00b7 " + it.sub : "")));
+    row.appendChild(main);
+    row.appendChild(el("span", "pill " + (it.inStock ? "pill-in" : "pill-out"), it.inStock ? "In stock" : "Sold out"));
+    var acts = el("div", "mrow-acts");
+    var eb = el("button", "order off quiet", "Edit"); eb.type = "button"; eb.onclick = function () { editId = it.id; drawItems(items); };
     var b = el("button", "order" + (it.inStock ? "" : " off"), it.inStock ? "Sold out" : "Back in stock");
     b.type = "button";
-    b.disabled = !real;
     b.onclick = function () {
       b.disabled = true;
       api({ action: "stock", itemId: it.id, inStock: !it.inStock }).then(function (r) {
-        if (r.ok) { it.inStock = !it.inStock; drawItems(items); }
+        if (r.ok) { it.inStock = !it.inStock; drawItems(items); drawOverview(); }
         else b.disabled = false;
-      });
+      }).catch(function () { b.disabled = false; });
     };
-    row.appendChild(b);
+    acts.appendChild(eb); acts.appendChild(b); row.appendChild(acts);
     box.appendChild(row);
   });
 }
 
+function bulkStock(on) {
+  var items = lastItems || [], todo = items.filter(function (i) { return i.inStock !== on; });
+  var msg = document.getElementById("stock-help");
+  if (!todo.length) return;
+  if (!window.confirm((on ? "Put " : "Mark ") + todo.length + (on ? " items back in stock?" : " items sold out?"))) return;
+  var i = 0;
+  document.getElementById("all-out").disabled = true; document.getElementById("all-in").disabled = true;
+  (function next() {
+    if (i >= todo.length) { document.getElementById("all-out").disabled = false; document.getElementById("all-in").disabled = false; drawItems(items); drawOverview(); return; }
+    msg.textContent = "Updating " + (i + 1) + " of " + todo.length + "...";
+    var it = todo[i++];
+    api({ action: "stock", itemId: it.id, inStock: on }).then(function (r) { if (r.ok) it.inStock = on; next(); }).catch(next);
+  })();
+}
+document.getElementById("all-out").onclick = function () { bulkStock(false); };
+document.getElementById("all-in").onclick = function () { bulkStock(true); };
+
+document.getElementById("add-form").addEventListener("submit", function (e) {
+  e.preventDefault();
+  var f = e.target, msg = document.getElementById("add-msg"), p = Number(f.elements.price.value);
+  if (!(p > 0) || Math.round(p) !== p) { msg.className = "form-msg err"; msg.textContent = "Price must be a whole number of rupees."; return; }
+  msg.className = "form-msg"; msg.textContent = "Adding...";
+  api({ action: "additem", name: f.elements.name.value.trim(), price: p, category: f.elements.category.value, sub: f.elements.sub.value.trim(), packLabel: f.elements.packLabel.value.trim() }).then(function (r) {
+    if (!r.ok) throw new Error(r.error || "failed");
+    f.reset(); msg.textContent = "Added, as sold out. Switch it on from the list above when it is ready.";
+    return refresh();
+  }).catch(function (err) {
+    msg.className = "form-msg err";
+    msg.textContent = (err && err.message && err.message !== "failed" && err.message !== "Bad request") ? err.message : "Could not add. Try again in a minute.";
+  });
+});
+
+function drawAddForm() {
+  var f = document.getElementById("add-form"), c = f.elements.category;
+  if (c.options.length) return;
+  (cfg.categories || []).forEach(function (k) { var o = el("option", "", k.label); o.value = k.id; c.appendChild(o); });
+}
+
+function drawSettings() {
+  var box = document.getElementById("p-settings"); box.textContent = "";
+  var s = lastStall; if (!s) return;
+  var sec = section("Your stall", "What customers and the site team see and use.", 0);
+  sec.querySelector(".osec-count").hidden = true;
+  function line(k, v) { var r = el("div", "kv"); r.appendChild(el("span", "kv-k", k)); r.appendChild(el("span", "kv-v", v || "Not set")); sec.appendChild(r); }
+  line("Stall name", s.name);
+  line("Owner", s.owner);
+  line("UPI ID", s.upi);
+  line("Delivers to", (s.hostels || []).join(", "));
+  line("Most per order", String(s.maxQty || 5));
+  var b = el("button", "order", "Edit details"); b.type = "button"; b.onclick = function () { showSetup(lastStall, false); };
+  var w = el("div", "actions"); w.appendChild(b); sec.appendChild(w);
+  sec.appendChild(el("p", "dash-p", "Your UPI ID makes the payment code at checkout. Change it only to an ID you own. Your access code is for your stall only and is not shown here."));
+  box.appendChild(sec);
+  var so = el("button", "order off quiet", "Sign out"); so.type = "button"; so.onclick = function () { document.getElementById("signout").click(); };
+  box.appendChild(so);
+}
+
+document.getElementById("osearch").addEventListener("input", function (e) { ofilter = e.target.value.trim().toLowerCase(); drawOrders(lastOrders); });
 
 var hm = { el: el, clock: clock, drawOrders: drawOrders, root: null, lastMs: 0, api: function (p) { return api(p); }, refresh: function () { return refresh(); } };
 
@@ -200,7 +351,7 @@ function screen(which) {
   var scx = document.getElementById("stall-complaint"); if (scx) scx.hidden = which !== "board";
   var inn = which === "setup" || which === "board";
   document.getElementById("acct-business").hidden = !inn;
-  document.getElementById("dash-kicker").textContent = which === "setup" ? "Setup" : which === "board" ? "Live orders" : "Stall dashboard";
+  document.getElementById("dash-kicker").textContent = which === "setup" ? "Setup" : which === "board" ? "Stall dashboard" : "Stall dashboard";
 }
 
 function loadBoard() {
@@ -264,9 +415,13 @@ function refresh() {
     if (view) {
       view.update(res);
     } else {
-      drawOrders(lastOrders);
+      buildTabs();
       lastItems = res.items;
+      drawOrders(lastOrders);
       drawItems(lastItems);
+      drawAddForm();
+      drawOverview();
+      drawSettings();
     }
     var line = document.getElementById("status-line");
     line.textContent = "Updated " + new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" });
@@ -275,6 +430,7 @@ function refresh() {
     drawStallComplaint();
     if (!timer) timer = setInterval(function () { if (!document.getElementById("view-business").hidden) refresh(); }, 15000);
   }).catch(function (err) {
+    window.__lastErr = err && err.stack || String(err);
     var line = document.getElementById("status-line");
     if (err.message === "bad login") {
       localStorage.removeItem("hmLogin");
@@ -344,7 +500,6 @@ window.hmBusiness = {
     else { screen("login"); paintHeader("Stall login"); }
   }
 };
-})();
 
 // ---------- order complaints (stall) ----------
 var STALL_TYPES = ["Customer unreachable", "Suspected fake order", "Payment problem", "Wrong details given", "Other"];
@@ -373,3 +528,4 @@ document.getElementById("stall-complaint-form").addEventListener("submit", funct
       msg.textContent = (err && err.message && err.message !== "failed") ? err.message : "Could not send. Try again in a minute.";
     });
 });
+})();
