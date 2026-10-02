@@ -182,6 +182,7 @@ ul.stats span { font-size: 10px; letter-spacing: .26em; text-transform: uppercas
 .phone-cc { font: 400 18px/1 var(--serif); color: var(--brass); padding-right: 12px; border-right: 1px solid var(--line-2); letter-spacing: .02em; }
 .form .phone input { border: 0; }
 .trap { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+.form label.chk { display: inline-flex; font-size: 12px; letter-spacing: .14em; color: var(--ink); }
 .check-row { display: flex; flex-wrap: wrap; gap: 10px; }
 .chk { display: inline-flex; align-items: center; gap: 10px; padding: 10px 16px; border: 1px solid var(--line-2); border-radius: 999px; font-size: 12px; letter-spacing: .14em; cursor: pointer; transition: border-color .25s; }
 .chk:hover { border-color: var(--brass); }
@@ -222,7 +223,7 @@ ul.stats span { font-size: 10px; letter-spacing: .26em; text-transform: uppercas
 .tagline { margin: 16px 0 0; font-size: 12px; letter-spacing: .08em; color: var(--muted); }
 .tagline.err { color: var(--bad); }
 .login { padding-top: 32px; padding-bottom: 72px; max-width: 560px; margin: 0 auto 0 0; }
-@media (min-width: 1200px) { .login { margin-left: max(24px, calc((100vw - 1280px) / 2 + 24px)); } }
+@media (min-width: 1280px) { .login { margin-left: calc((100vw - 1280px) / 2); } }
 .setup-title { margin: 0 0 6px; font: 400 clamp(26px, 3.4vw, 38px)/1.1 var(--display); letter-spacing: -.02em; }
 .dash-p { margin: 8px 0 16px; font-size: 14px; color: var(--muted); max-width: 40em; }
 .dash-h { margin: 56px 0 6px; font: 400 clamp(26px, 3.4vw, 38px)/1 var(--display); letter-spacing: -.02em; }
