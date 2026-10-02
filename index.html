@@ -118,6 +118,22 @@
         <a class="order" id="cmp-go" href="#compare">Compare</a>
       </div>
 
+      <section class="help" id="complaint">
+        <div class="wrap help-in">
+          <div>
+            <h2>Problem with an order?</h2>
+            <p>Paid but not approved, wrong order, never arrived. Tell us here and it gets sorted. This is for orders. For site bugs, use the form below.</p>
+          </div>
+          <form id="complaint-form" class="form" autocomplete="off">
+            <label>Which order<select name="orderId"></select></label>
+            <label>What went wrong<select name="type"></select></label>
+            <label>Tell us what happened<textarea name="message" rows="4" required maxlength="1000"></textarea></label>
+            <button class="order" type="submit">Send complaint</button>
+            <p class="form-msg" id="complaint-msg" aria-live="polite"></p>
+          </form>
+        </div>
+      </section>
+
       <section class="help" id="help">
         <div class="wrap help-in">
           <div>
@@ -193,6 +209,17 @@
         <p class="dash-p" id="stock-help"></p>
         <div id="items"></div>
       </main>
+      <section class="wrap dash-complaint" id="stall-complaint">
+        <h2 class="dash-h">Problem with an order?</h2>
+        <p class="dash-p">Customer unreachable, suspected fake order, payment trouble. It is sent to the site team and handled. Site bugs go in the help form in the customer view.</p>
+        <form id="stall-complaint-form" class="form" autocomplete="off">
+          <label>Which order<select name="orderId"></select></label>
+          <label>What went wrong<select name="type"></select></label>
+          <label>Tell us what happened<textarea name="message" rows="4" required maxlength="1000"></textarea></label>
+          <button class="order" type="submit">Send</button>
+          <p class="form-msg" id="stall-complaint-msg" aria-live="polite"></p>
+        </form>
+      </section>
       <footer class="foot">
         <p>Keep this page open. It refreshes every 15 seconds. Your access code is for your stall only. Do not share it.</p>
         <p>Problem? Use the help form in the customer view.</p>
