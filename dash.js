@@ -197,6 +197,7 @@ function screen(which) {
   document.getElementById("login").hidden = which !== "login";
   document.getElementById("setup").hidden = which !== "setup";
   document.getElementById("board").hidden = which !== "board";
+  var scx = document.getElementById("stall-complaint"); if (scx) scx.hidden = which !== "board";
   var inn = which === "setup" || which === "board";
   document.getElementById("acct-business").hidden = !inn;
   document.getElementById("dash-kicker").textContent = which === "setup" ? "Setup" : which === "board" ? "Live orders" : "Stall dashboard";
@@ -270,6 +271,8 @@ function refresh() {
     var line = document.getElementById("status-line");
     line.textContent = "Updated " + new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" });
     line.classList.remove("err");
+    var sc = document.getElementById("stall-complaint"); if (sc) sc.hidden = !!view;
+    drawStallComplaint();
     if (!timer) timer = setInterval(function () { if (!document.getElementById("view-business").hidden) refresh(); }, 15000);
   }).catch(function (err) {
     var line = document.getElementById("status-line");
@@ -342,3 +345,31 @@ window.hmBusiness = {
   }
 };
 })();
+
+// ---------- order complaints (stall) ----------
+var STALL_TYPES = ["Customer unreachable", "Suspected fake order", "Payment problem", "Wrong details given", "Other"];
+function drawStallComplaint() {
+  var f = document.getElementById("stall-complaint-form");
+  if (!f || !lastOrders) return;
+  var os = f.elements.orderId, keep = os.value; os.textContent = "";
+  var none = hm.el("option", "", "Not about one order"); none.value = ""; os.appendChild(none);
+  lastOrders.slice().sort(function (a, b) { return a.time < b.time ? 1 : -1; }).slice(0, 40).forEach(function (o) {
+    var op = hm.el("option", "", o.id + " \u00b7 " + o.qty + " x " + o.itemName); op.value = o.id; os.appendChild(op);
+  });
+  os.value = keep;
+  var ts = f.elements.type; if (!ts.options.length) STALL_TYPES.forEach(function (t) { var op = hm.el("option", "", t); op.value = t; ts.appendChild(op); });
+}
+document.getElementById("stall-complaint-form").addEventListener("submit", function (e) {
+  e.preventDefault();
+  var f = e.target, msg = document.getElementById("stall-complaint-msg");
+  msg.className = "form-msg"; msg.textContent = "Sending...";
+  api({ action: "complaint", side: "stall", orderId: f.elements.orderId.value, type: f.elements.type.value, message: f.elements.message.value })
+    .then(function (res) {
+      if (!res.ok) throw new Error(res.error || "failed");
+      f.elements.message.value = "";
+      msg.textContent = "Got it. Logged" + (res.id ? " (" + res.id + ")" : "") + " and will be handled.";
+    }).catch(function (err) {
+      msg.className = "form-msg err";
+      msg.textContent = (err && err.message && err.message !== "failed") ? err.message : "Could not send. Try again in a minute.";
+    });
+});
