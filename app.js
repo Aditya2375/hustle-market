@@ -228,11 +228,13 @@ function openOrder(item) {
       custom: custom
     }).then(function (res) {
       if (!res.ok) throw new Error(res.error || "failed");
+      var shownHostel = form.elements.hostel.value;
+      var shownRoom = form.elements.room.value;
       form.textContent = "";
       var done = el("div", "done");
       done.appendChild(el("h3", "", "Order sent to " + stall.name));
       done.appendChild(el("p", "ref", res.id));
-      done.appendChild(el("p", "", qty + " x " + item.name + " to " + form.elements.hostel.value + ", room " + form.elements.room.value + ". The stall sees it on their screen now. They will confirm it from there."));
+      done.appendChild(el("p", "", qty + " x " + item.name + " to " + shownHostel + ", room " + shownRoom + ". The stall sees it on their screen now. They will confirm it from there."));
       if (res.demo) done.appendChild(el("p", "", "Demo mode: nothing was really sent."));
       var again = el("button", "order", "Done");
       again.type = "button";
@@ -274,8 +276,12 @@ function orderButton(item) {
 function drawHostelToggle() {
   var box = document.getElementById("hostel-toggle");
   box.textContent = "";
+  var idx = Math.max(0, data.hostels.indexOf(state.hostel));
+  box.style.setProperty("--n", data.hostels.length);
+  box.style.setProperty("--i", idx);
+  box.appendChild(el("span", "thumb"));
   data.hostels.forEach(function (name) {
-    var b = el("button", "toggle-btn" + (state.hostel === name ? " on" : ""), name);
+    var b = el("button", "switch-btn" + (state.hostel === name ? " on" : ""), name);
     b.type = "button";
     b.setAttribute("aria-pressed", state.hostel === name ? "true" : "false");
     b.addEventListener("click", function () {
@@ -434,21 +440,42 @@ function showRoute() {
   var compare = document.getElementById("compare");
   var results = document.getElementById("results");
   var count = document.getElementById("count");
-  var controls = document.querySelector(".controls");
 
-  if (hash.indexOf("#compare/") === 0 && state.hostel) {
+  if (hash === "#business") { setRole("business"); return; }
+  if (!role()) return;
+
+  if (hash.indexOf("#compare/") === 0 && state.hostel && role() === "customer") {
     drawCompare(hash.slice(9));
     compare.hidden = false;
     results.hidden = true;
     count.hidden = true;
-    controls.hidden = true;
     window.scrollTo(0, 0);
   } else {
     compare.hidden = true;
     results.hidden = false;
     count.hidden = false;
-    controls.hidden = false;
   }
+}
+
+// ---------- who is this: customer or business ----------
+
+function role() {
+  return sessionStorage.getItem("role") || (localStorage.getItem("hmLogin") ? "business" : "");
+}
+
+function setRole(r) {
+  if (r) sessionStorage.setItem("role", r); else sessionStorage.removeItem("role");
+  var shown = r === "customer" || r === "business";
+  document.getElementById("gate").hidden = shown;
+  document.getElementById("app").hidden = !shown;
+  document.getElementById("view-customer").hidden = r !== "customer";
+  document.getElementById("view-business").hidden = r !== "business";
+  document.querySelector(".bar").hidden = r !== "customer";
+  document.body.classList.toggle("is-gate", !shown);
+  if (r === "business" && window.hmBusiness && data) window.hmBusiness.start(data);
+  if (r === "customer" && window.location.hash === "#business") history.replaceState(null, "", window.location.pathname);
+  if (r === "customer" && data) drawAll();
+  window.scrollTo(0, 0);
 }
 
 function drawStats() {
@@ -474,6 +501,11 @@ function drawAll() {
 
 // ---------- start ----------
 
+// Gate is visible straight away; the app shows after the data loads and a role is known.
+(function () {
+  if (role() || window.location.hash === "#business") document.getElementById("gate").hidden = true;
+})();
+
 document.getElementById("search").addEventListener("input", function (e) {
   state.query = e.target.value;
   drawResults();
@@ -491,19 +523,35 @@ fetch("data.json")
   .then(function (local) {
     if (!local.backend || !local.backend.url) return local;
     return fetch(local.backend.url + "?action=data").then(function (r) { return r.json(); })
-      .then(function (live) { live.backend = local.backend; live.support = local.support; return live; })
-      .catch(function () { return local; });
+      .then(function (live) {
+        if (!live || !live.items || !live.stalls) throw new Error("bad data");
+        live.backend = local.backend; live.support = local.support; return live;
+      });
   })
   .then(function (json) {
     data = json;
     document.getElementById("support-note").textContent = (data.support && data.support.note) || "";
     if (data.hostels.indexOf(state.hostel) === -1) state.hostel = data.hostels[0];
-    document.getElementById("demo-banner").hidden = !data.event.demo;
+    // The demo banner stays until a live backend URL is set AND the Sheet Config says demo is FALSE.
+    document.getElementById("demo-banner").hidden = !!(backendUrl() && !data.event.demo);
     if (data.event.stockNote) document.getElementById("stock-note").textContent = data.event.stockNote;
-    drawAll();
+    document.getElementById("gate-customer").disabled = false;
+    document.getElementById("gate-business").disabled = false;
+    setRole(role());
+    if (window.location.hash === "#business") setRole("business");
   })
   .catch(function () {
-    document.getElementById("count").textContent = "Could not load the stall list. Check your connection and refresh.";
+    // With a live backend there is no stale fallback: orderable items must be current.
+    document.getElementById("gate").hidden = true;
+    document.getElementById("app").hidden = false;
+    document.getElementById("view-customer").hidden = false;
+    document.querySelector(".bar").hidden = true;
+    var c = document.getElementById("count");
+    c.textContent = "Could not load the stall list. Check your connection, then ";
+    var again = el("button", "linkbtn", "try again");
+    again.type = "button";
+    again.onclick = function () { location.reload(); };
+    c.appendChild(again);
   });
 
 document.getElementById("sheet-close").addEventListener("click", closeSheet);
@@ -527,3 +575,8 @@ document.getElementById("bug-form").addEventListener("submit", function (e) {
     msg.textContent = "Could not send. Try again in a minute.";
   });
 });
+
+document.getElementById("gate-customer").addEventListener("click", function () { setRole("customer"); });
+document.getElementById("gate-business").addEventListener("click", function () { window.location.hash = "#business"; setRole("business"); });
+document.getElementById("to-business").addEventListener("click", function () { window.location.hash = "#business"; setRole("business"); });
+document.getElementById("to-customer").addEventListener("click", function () { setRole("customer"); });
