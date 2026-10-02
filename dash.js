@@ -286,6 +286,7 @@ function refresh() {
     }
     line.classList.add("err");
     line.textContent = "No connection. Showing the last orders. Retrying...";
+    if (!document.getElementById("login").hidden) document.getElementById("login-msg").textContent = "Could not reach the server. Check your connection and try again.";
   });
 }
 
@@ -295,9 +296,11 @@ document.getElementById("login-form").addEventListener("submit", function (e) {
   var f = e.target;
   login = { login: f.elements.login.value.trim(), code: f.elements.code.value.trim() };
   localStorage.setItem("hmLogin", JSON.stringify(login));
-  document.getElementById("login-msg").textContent = "";
+  var lm = document.getElementById("login-msg");
+  lm.textContent = "Signing in... this can take a few seconds.";
+  var sb = f.querySelector("button[type=submit], button:not([type])"); if (sb) sb.disabled = true;
   editing = false;
-  refresh();
+  refresh().then(function () { if (sb) sb.disabled = false; if (lm.textContent.indexOf("Signing in") === 0) lm.textContent = ""; });
 });
 
 document.getElementById("setup-form").addEventListener("submit", function (e) {
