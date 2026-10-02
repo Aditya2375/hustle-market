@@ -1,3 +1,4 @@
+(function () {
 // Stall dashboard. Open as stall.html?s=<stall id>&k=<private key>.
 // Reads orders from the Apps Script backend every 30 seconds. Demo mode (no backend URL) reads this browser's demo orders.
 
@@ -6,6 +7,7 @@
 var stallId = "";
 var login = JSON.parse(localStorage.getItem("hmLogin") || "null");
 var timer = null;
+var started = false;
 var cfg = null;
 var seen = JSON.parse(sessionStorage.getItem("seen") || "[]");
 var firstLoad = true;
@@ -149,7 +151,7 @@ function refresh() {
     var line = document.getElementById("status-line");
     line.textContent = "Updated " + new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" });
     line.classList.remove("err");
-    if (!timer) timer = setInterval(refresh, 30000);
+    if (!timer) timer = setInterval(function () { if (!document.getElementById("view-business").hidden) refresh(); }, 30000);
   }).catch(function (err) {
     var line = document.getElementById("status-line");
     if (err.message === "bad login") {
@@ -178,14 +180,21 @@ document.getElementById("login-form").addEventListener("submit", function (e) {
 
 document.getElementById("signout").addEventListener("click", function () {
   localStorage.removeItem("hmLogin");
+  sessionStorage.removeItem("role");
+  location.hash = "";
   location.reload();
 });
 
-fetch("data.json").then(function (r) { return r.json(); }).then(function (json) {
-  cfg = json;
-  document.getElementById("demo-banner").hidden = !(cfg.event && cfg.event.demo);
-  if (cfg.event && cfg.event.demo && !(cfg.backend && cfg.backend.url)) {
-    document.getElementById("demo-banner").textContent = "DEMO. Sign in with any stall name above and code DEMO. Orders come from this browser only.";
+
+window.hmBusiness = {
+  start: function (data) {
+    cfg = data;
+    login = JSON.parse(localStorage.getItem("hmLogin") || "null");
+    if (login) refresh();
+    else {
+      show(false);
+      document.getElementById("stall-name").textContent = "Stall login";
+    }
   }
-  if (login) refresh(); else { show(false); document.getElementById("stall-name").textContent = "Stall login"; }
-});
+};
+})();
