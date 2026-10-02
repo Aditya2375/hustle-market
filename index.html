@@ -138,11 +138,12 @@
       <section class="help" id="help">
         <div class="wrap help-in">
           <div>
-            <h2>Something broken? Question?</h2>
+            <h2>Something broken? Feature you want? Question?</h2>
             <p id="support-note"></p>
           </div>
           <form id="bug-form" class="form" autocomplete="off">
-            <label>What happened?<textarea name="message" rows="4" required maxlength="1000"></textarea></label>
+            <label>What is it about?<select name="kind"><option>Something is broken</option><option>Feature idea</option><option>Question</option></select></label>
+            <label>Tell us more<textarea name="message" rows="4" required maxlength="1000"></textarea></label>
             <label>Your name (optional)<input name="name" maxlength="60"></label>
             <label>Phone or email, so we can reply (optional)<input name="contact" maxlength="80"></label>
             <label>Is it about a stall? Which one (optional)<input name="stall" maxlength="80"></label>
