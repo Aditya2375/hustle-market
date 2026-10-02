@@ -1,16 +1,17 @@
 (function () {
-// Stall dashboard. Open as stall.html?s=<stall id>&k=<private key>.
-// Reads orders from the Apps Script backend every 30 seconds. Demo mode (no backend URL) reads this browser's demo orders.
-
-// Stall dashboard. The stall signs in with its name and an access code (given to the stall).
-// The code is checked on the server for every request. It is never put in the page address.
+// Stall dashboard. A stall signs in with its name and an access code given to the stall.
+// The code is checked on the server for every request and is never put in the page address.
 var stallId = "";
 var login = JSON.parse(localStorage.getItem("hmLogin") || "null");
 var timer = null;
-var started = false;
 var cfg = null;
+var editing = false;
+var lastStall = null;
 var seen = JSON.parse(sessionStorage.getItem("seen") || "[]");
 var firstLoad = true;
+var lastItems = null;
+var lastOrders = [];
+var view = null;
 
 function el(tag, cls, text) {
   var n = document.createElement(tag);
@@ -20,30 +21,12 @@ function el(tag, cls, text) {
 }
 
 function api(payload) {
-  if (!cfg.backend || !cfg.backend.url) {
-    // demo mode: any stall name from the list, code "DEMO"
-    var list = JSON.parse(localStorage.getItem("demoOrders") || "[]");
-    if (payload.action === "orders") {
-      var st = cfg.stalls.filter(function (s) { return s.name.toLowerCase() === login.login.toLowerCase() || s.id === login.login; })[0];
-      if (!st || login.code.toUpperCase() !== "DEMO") return Promise.resolve({ ok: false, error: "bad login" });
-      stallId = st.id;
-      return Promise.resolve({ ok: true, stall: { id: st.id, name: st.name }, orders: list.filter(function (o) { return o.stallId === stallId; }) });
-    }
-    if (payload.action === "status") {
-      list.forEach(function (o) { if (o.id === payload.id) o.status = payload.status; });
-      list = list.filter(function (o) { return o.status !== "deleted"; });
-      localStorage.setItem("demoOrders", JSON.stringify(list));
-      return Promise.resolve({ ok: true });
-    }
-    return Promise.resolve({ ok: false, error: "Demo mode" });
-  }
-  if (payload.action === "orders") {
-  }
-
   payload.login = login.login;
   payload.code = login.code;
   var t0 = Date.now();
-  return fetch(cfg.backend.url, { method: "POST", body: JSON.stringify(payload) }).then(function (r) { return r.json(); }).then(function (j) { hm.lastMs = Date.now() - t0; return j; });
+  return fetch(cfg.backend.url, { method: "POST", body: JSON.stringify(payload) })
+    .then(function (r) { return r.json(); })
+    .then(function (j) { hm.lastMs = Date.now() - t0; return j; });
 }
 
 function clock(iso) {
@@ -51,53 +34,116 @@ function clock(iso) {
   return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) + ", " + d.toLocaleDateString([], { day: "numeric", month: "short" });
 }
 
+function rupee(n) { return "\u20B9" + (Math.round(n) || 0); }
+
+// ---------- orders: three clear sections ----------
+
+var AWAITING = ["new", "awaiting"];
+
+function section(title, sub, count, tone) {
+  var s = el("section", "osec " + (tone || ""));
+  var h = el("header", "osec-head");
+  var t = el("div", "osec-t");
+  t.appendChild(el("h2", "osec-title", title));
+  if (sub) t.appendChild(el("p", "osec-sub", sub));
+  h.appendChild(t);
+  h.appendChild(el("span", "osec-count", String(count)));
+  s.appendChild(h);
+  return s;
+}
+
+function cardHead(o, opts) {
+  var head = el("div", "card-head");
+  head.appendChild(el("h3", "item-name", o.qty + " \u00d7 " + o.itemName));
+  head.appendChild(el("p", "price", rupee(o.total)));
+  return head;
+}
+
 function drawOrders(orders, boxEl, opts) {
   opts = opts || {};
   var box = boxEl || document.getElementById("orders");
   box.textContent = "";
   orders.sort(function (a, b) { return a.time < b.time ? 1 : -1; });
+  var waiting = orders.filter(function (o) { return AWAITING.indexOf(o.status) !== -1; });
+  var making = orders.filter(function (o) { return o.status === "accepted"; });
+  var done = orders.filter(function (o) { return ["delivered", "cancelled", "flagged"].indexOf(o.status) !== -1; });
 
-  var fresh = orders.filter(function (o) { return o.status === "new"; });
   if (!boxEl) {
-    document.getElementById("new-count").textContent =
-      fresh.length ? fresh.length + " new order" + (fresh.length === 1 ? "" : "s") + " waiting" : "No new orders. Waiting...";
-    document.title = (fresh.length ? "(" + fresh.length + ") " : "") + "Stall orders";
+    var parts = [];
+    parts.push(waiting.length + " awaiting payment check");
+    parts.push(making.length + " to make");
+    document.getElementById("new-count").textContent = parts.join("  \u00b7  ");
+    document.title = (waiting.length ? "(" + waiting.length + ") " : "") + "Stall orders";
   }
 
-  if (orders.length === 0) box.appendChild(el("p", "empty", "Nothing yet. New orders appear here by themselves."));
-
-  orders.forEach(function (o) {
-    var isNew = o.status === "new";
-    var card = el("article", "card cat-food order-card" + (isNew ? " is-new" : " handled"));
-    var head = el("div", "card-head");
-    head.appendChild(el("h2", "item-name", o.qty + " x " + o.itemName));
-    head.appendChild(el("p", "price", "\u20B9" + o.total));
-    card.appendChild(head);
-    if (isNew && !firstLoad && seen.indexOf(o.id) === -1) card.appendChild(el("p", "best", "Just in"));
-
-    var where = el("p", "dash-where", o.hostel + " \u00b7 Room " + o.room);
-    card.appendChild(where);
-    if (opts.stallNames && o.stallName) card.appendChild(el("p", "best", o.stallName));
-    card.appendChild(el("p", "stall", o.name + " \u00b7 " + clock(o.time) + " \u00b7 " + o.id));
-
+  // 1. Awaiting payment verification
+  var sw = section("Awaiting payment check", "Customers who have placed an order. Confirm the money arrived in your UPI app, then approve.", waiting.length, "tone-wait");
+  if (!waiting.length) sw.appendChild(el("p", "empty", "Nothing waiting. New orders show up here by themselves."));
+  waiting.forEach(function (o) {
+    var card = el("article", "card order-card is-new");
+    card.appendChild(cardHead(o, opts));
+    if (!firstLoad && seen.indexOf(o.id) === -1) card.appendChild(el("p", "best", "Just in"));
+    card.appendChild(el("p", "dash-where", o.hostel + (opts.stallNames && o.stallName ? " \u00b7 " + o.stallName : "")));
+    card.appendChild(el("p", "stall", clock(o.time) + " \u00b7 " + o.id));
+    var payer = el("p", "payer");
+    payer.appendChild(el("span", "", "Paid from number ending "));
+    payer.appendChild(el("b", "", o.mobileLast4 ? "\u2022\u2022\u2022\u2022 " + o.mobileLast4 : "unknown"));
+    card.appendChild(payer);
+    card.appendChild(el("p", "hint", "Verify payment from this number in your UPI app before approving. Customer name, room and full number unlock after you approve."));
     var extra = o.custom || {};
-    Object.keys(extra).forEach(function (k) {
-      if (extra[k]) card.appendChild(el("p", "dash-extra", k + ": " + extra[k]));
-    });
-
+    Object.keys(extra).forEach(function (k) { if (extra[k]) card.appendChild(el("p", "dash-extra", k + ": " + extra[k])); });
     var actions = el("div", "actions");
-    if (o.status === "new") actions.appendChild(statusBtn(opts, o, "accepted", "Accept"));
-    if (o.status === "new" || o.status === "accepted") {
-      actions.appendChild(statusBtn(opts, o, "delivered", "Delivered"));
-      actions.appendChild(statusBtn(opts, o, "cancelled", "Cancel", true));
-    }
-    if (o.status !== "flagged") actions.appendChild(statusBtn(opts, o, "flagged", "Flag fake", true));
-    actions.appendChild(statusBtn(opts, o, "deleted", "Delete", true));
-    if (o.status !== "new") actions.appendChild(el("span", "facts-status", o.status.toUpperCase()));
+    actions.appendChild(statusBtn(opts, o, "accepted", "Approve payment"));
+    actions.appendChild(statusBtn(opts, o, "cancelled", "Not received", true));
+    actions.appendChild(statusBtn(opts, o, "flagged", "Flag fake", true));
     card.appendChild(actions);
-    box.appendChild(card);
+    sw.appendChild(card);
     if (seen.indexOf(o.id) === -1) seen.push(o.id);
   });
+  box.appendChild(sw);
+
+  // 2. Approved, still to make and hand over
+  var sm = section("To make", "Payment verified. Make these and deliver them.", making.length, "tone-make");
+  if (!making.length) sm.appendChild(el("p", "empty", "Nothing to make right now."));
+  making.forEach(function (o) {
+    var card = el("article", "card order-card handled");
+    card.appendChild(cardHead(o, opts));
+    card.appendChild(el("p", "dash-where", o.hostel + " \u00b7 Room " + o.room + (opts.stallNames && o.stallName ? " \u00b7 " + o.stallName : "")));
+    var who = el("p", "stall");
+    who.appendChild(document.createTextNode(o.name + " \u00b7 "));
+    if (/^\d{10}$/.test(o.mobile || "")) {
+      var tel = el("a", "tel", "+91 " + o.mobile.slice(0, 5) + " " + o.mobile.slice(5));
+      tel.href = "tel:+91" + o.mobile;
+      who.appendChild(tel);
+    }
+    card.appendChild(who);
+    card.appendChild(el("p", "stall", clock(o.time) + " \u00b7 " + o.id));
+    var extra = o.custom || {};
+    Object.keys(extra).forEach(function (k) { if (extra[k]) card.appendChild(el("p", "dash-extra", k + ": " + extra[k])); });
+    var actions = el("div", "actions");
+    actions.appendChild(statusBtn(opts, o, "delivered", "Mark delivered"));
+    actions.appendChild(statusBtn(opts, o, "cancelled", "Cancel", true));
+    card.appendChild(actions);
+    sm.appendChild(card);
+  });
+  box.appendChild(sm);
+
+  // 3. Finished
+  if (done.length) {
+    var det = el("details", "osec tone-done");
+    var sum = el("summary", "osec-head");
+    sum.appendChild(el("h2", "osec-title", "Completed"));
+    sum.appendChild(el("span", "osec-count", String(done.length)));
+    det.appendChild(sum);
+    done.forEach(function (o) {
+      var row = el("div", "done-row");
+      row.appendChild(el("span", "done-main", o.qty + " \u00d7 " + o.itemName + " \u00b7 " + rupee(o.total)));
+      row.appendChild(el("span", "done-meta", (o.name ? o.name + " \u00b7 " : "") + o.hostel + " \u00b7 " + clock(o.time)));
+      row.appendChild(el("span", "facts-status", o.status.toUpperCase()));
+      det.appendChild(row);
+    });
+    box.appendChild(det);
+  }
   sessionStorage.setItem("seen", JSON.stringify(seen));
   firstLoad = false;
 }
@@ -107,11 +153,12 @@ function statusBtn(opts, o, status, label, quiet) {
   b.type = "button";
   b.onclick = function () {
     b.disabled = true;
-    // Show the change at once; the server confirms on the next refresh.
     o.status = status;
-    if (status === "deleted") lastOrders = lastOrders.filter(function (x) { return x.id !== o.id; });
     if (opts.onChange) opts.onChange(); else drawOrders(lastOrders);
-    api({ action: "status", id: o.id, status: status }).then(function () { refresh(); });
+    api({ action: "status", id: o.id, status: status }).then(function (r) {
+      if (!r.ok) window.alert(r.error || "Could not save. Try again.");
+      refresh();
+    });
   };
   return b;
 }
@@ -119,7 +166,7 @@ function statusBtn(opts, o, status, label, quiet) {
 function drawItems(items) {
   var box = document.getElementById("items");
   box.textContent = "";
-  var real = cfg.backend && cfg.backend.url;
+  var real = true;
   document.getElementById("stock-help").textContent = real
     ? "Out of something? Tap Sold out. It stops being orderable on the site within about a minute."
     : "Demo mode: stock buttons are off.";
@@ -141,14 +188,18 @@ function drawItems(items) {
   });
 }
 
-var lastItems = null;
-var lastOrders = [];
-var view = null;
+
 var hm = { el: el, clock: clock, drawOrders: drawOrders, root: null, lastMs: 0, api: function (p) { return api(p); }, refresh: function () { return refresh(); } };
-function show(signedIn) {
-  document.getElementById("login").hidden = signedIn;
-  document.getElementById("board").hidden = !signedIn;
-  document.getElementById("signout").hidden = !signedIn;
+
+// ---------- screens: login, setup, dashboard ----------
+
+function screen(which) {
+  document.getElementById("login").hidden = which !== "login";
+  document.getElementById("setup").hidden = which !== "setup";
+  document.getElementById("board").hidden = which !== "board";
+  var inn = which === "setup" || which === "board";
+  document.getElementById("acct-business").hidden = !inn;
+  document.getElementById("dash-kicker").textContent = which === "setup" ? "Setup" : which === "board" ? "Live orders" : "Stall dashboard";
 }
 
 function loadBoard() {
@@ -160,13 +211,46 @@ function loadBoard() {
   });
 }
 
+function showSetup(stall, first) {
+  editing = true;
+  var f = document.getElementById("setup-form");
+  document.getElementById("setup-title").textContent = first ? "A few details before you start" : "Payment and delivery details";
+  document.getElementById("setup-kicker").textContent = first ? "Set up your stall" : "Your stall";
+  f.elements.owner.value = stall.owner || "";
+  f.elements.upi.value = stall.upi || "";
+  var hb = document.getElementById("setup-hostels"); hb.textContent = "";
+  var picked = (stall.hostels && stall.hostels.length) ? stall.hostels : (cfg.hostels || []);
+  (cfg.hostels || []).forEach(function (h) {
+    var l = el("label", "chk");
+    var i = document.createElement("input"); i.type = "checkbox"; i.value = h; i.checked = picked.indexOf(h) !== -1;
+    l.appendChild(i); l.appendChild(el("span", "", h)); hb.appendChild(l);
+  });
+  var mx = document.getElementById("setup-max"); mx.textContent = "";
+  for (var n = 1; n <= 20; n++) { var o = el("option", "", String(n)); o.value = String(n); mx.appendChild(o); }
+  mx.value = String(stall.maxQty || 5);
+  document.getElementById("setup-cancel").hidden = first;
+  document.getElementById("setup-msg").textContent = "";
+  document.getElementById("setup-submit").disabled = false;
+  screen("setup");
+}
+
+function paintHeader(name) {
+  document.getElementById("stall-name").textContent = name;
+  document.getElementById("bacct-name").textContent = name;
+  document.getElementById("bacct-avatar").textContent = (name.match(/[A-Za-z0-9]/) || ["S"])[0].toUpperCase();
+  document.getElementById("bmenu-who").textContent = "Signed in as " + name;
+}
+
 function refresh() {
   return api({ action: "orders" }).then(async function (res) {
     if (!res.ok) throw new Error(res.error || "failed");
-    show(true);
-    document.getElementById("stall-name").textContent = res.stall.name;
+    paintHeader(res.stall.name);
     stallId = res.stall.id;
+    lastStall = res.stall;
     lastOrders = res.orders;
+    if (res.stall.setup === false && !editing) { showSetup(res.stall, true); return; }
+    if (editing) return;
+    screen("board");
     if (res.overview && !view) {
       try {
         if (!window.hmBoard) await loadBoard();
@@ -180,7 +264,7 @@ function refresh() {
       view.update(res);
     } else {
       drawOrders(lastOrders);
-      lastItems = res.items || cfg.items.filter(function (i) { return i.stall === stallId; });
+      lastItems = res.items;
       drawItems(lastItems);
     }
     var line = document.getElementById("status-line");
@@ -191,12 +275,11 @@ function refresh() {
     var line = document.getElementById("status-line");
     if (err.message === "bad login") {
       localStorage.removeItem("hmLogin");
-      login = null;
-      view = null;
+      login = null; view = null; editing = false;
       document.getElementById("ext").hidden = true;
-      show(false);
+      screen("login");
       clearInterval(timer); timer = null;
-      document.getElementById("stall-name").textContent = "Stall login";
+      paintHeader("Stall login");
       line.textContent = "";
       document.getElementById("login-msg").textContent = "Wrong stall name or code.";
       return;
@@ -213,26 +296,46 @@ document.getElementById("login-form").addEventListener("submit", function (e) {
   login = { login: f.elements.login.value.trim(), code: f.elements.code.value.trim() };
   localStorage.setItem("hmLogin", JSON.stringify(login));
   document.getElementById("login-msg").textContent = "";
+  editing = false;
   refresh();
+});
+
+document.getElementById("setup-form").addEventListener("submit", function (e) {
+  e.preventDefault();
+  var f = e.target, msg = document.getElementById("setup-msg"), btn = document.getElementById("setup-submit");
+  var hostels = Array.prototype.filter.call(f.querySelectorAll("#setup-hostels input"), function (i) { return i.checked; }).map(function (i) { return i.value; });
+  if (!hostels.length) { msg.className = "form-msg err"; msg.textContent = "Pick at least one hostel you deliver to."; return; }
+  btn.disabled = true; msg.className = "form-msg"; msg.textContent = "Saving...";
+  api({ action: "setprofile", owner: f.elements.owner.value.trim(), upi: f.elements.upi.value.trim(), hostels: hostels, maxQty: Number(f.elements.maxQty.value) }).then(function (r) {
+    if (!r.ok) throw new Error(r.error || "failed");
+    editing = false; firstLoad = true;
+    return refresh();
+  }).catch(function (err) {
+    btn.disabled = false; msg.className = "form-msg err";
+    msg.textContent = err.message && err.message !== "failed" ? err.message : "Could not save. Try again.";
+  });
+});
+document.getElementById("setup-cancel").addEventListener("click", function () { editing = false; refresh(); });
+document.getElementById("bmenu-settings").addEventListener("click", function () {
+  if (lastStall && lastStall.id !== "*") showSetup(lastStall, false);
+  else window.alert("Operator accounts have no payment details to edit.");
 });
 
 document.getElementById("signout").addEventListener("click", function () {
   localStorage.removeItem("hmLogin");
-  sessionStorage.removeItem("role");
+  sessionStorage.clear();
   location.hash = "";
   location.reload();
 });
 
+window.hmMenu("bacct-btn", "bacct-menu");
 
 window.hmBusiness = {
   start: function (data) {
     cfg = data;
     login = JSON.parse(localStorage.getItem("hmLogin") || "null");
     if (login) refresh();
-    else {
-      show(false);
-      document.getElementById("stall-name").textContent = "Stall login";
-    }
+    else { screen("login"); paintHeader("Stall login"); }
   }
 };
 })();
