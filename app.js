@@ -463,6 +463,21 @@ function role() {
   return sessionStorage.getItem("role") || (localStorage.getItem("hmLogin") ? "business" : "");
 }
 
+// Visit counter. A random id the browser makes up, no personal data. Only while the customer view is open and visible.
+var presenceTimer = null;
+function presence(on) {
+  clearInterval(presenceTimer); presenceTimer = null;
+  if (!on || !backendUrl()) return;
+  var sid = sessionStorage.getItem("hmSid");
+  if (!sid) { sid = Math.random().toString(36).slice(2, 12) + Date.now().toString(36).slice(-6); sessionStorage.setItem("hmSid", sid); }
+  function send(kind) {
+    if (document.hidden) return;
+    try { fetch(backendUrl(), { method: "POST", body: JSON.stringify({ action: kind, sid: sid }), keepalive: true }).catch(function () {}); } catch (e) {}
+  }
+  send("hit");
+  presenceTimer = setInterval(function () { send("ping"); }, 90000);
+}
+
 function setRole(r) {
   if (r) sessionStorage.setItem("role", r); else sessionStorage.removeItem("role");
   var shown = r === "customer" || r === "business";
@@ -475,6 +490,7 @@ function setRole(r) {
   if (r === "business" && window.hmBusiness && data) window.hmBusiness.start(data);
   if (r === "customer" && window.location.hash === "#business") history.replaceState(null, "", window.location.pathname);
   if (r === "customer" && data) drawAll();
+  presence(r === "customer");
   window.scrollTo(0, 0);
 }
 
