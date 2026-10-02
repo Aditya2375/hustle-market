@@ -373,6 +373,9 @@ function orderButton(item) {
     off.disabled = true;
     return off;
   }
+  if (!liveReady) {
+    var up = el("button", "order off", "Updating..."); up.type = "button"; up.disabled = true; return up;
+  }
   var stallObj = stallById(item.stall);
   if (stallObj && stallObj.payReady === false) {
     var np = el("button", "order off", "Not taking orders yet"); np.type = "button"; np.disabled = true; return np;
@@ -771,7 +774,8 @@ setInterval(function () {
   if (!document.getElementById("sheet").hidden || window.location.hash) return;
   fetch(backendUrl() + "?action=data").then(function (r) { return r.json(); }).then(function (live) {
     if (!live || !live.items || !live.stalls) return;
-    live.backend = data.backend; live.support = data.support; data = live;
+    live.backend = data.backend; live.support = data.support; data = live; liveReady = true;
+    try { localStorage.setItem("hmData", JSON.stringify({ t: Date.now(), d: live })); } catch (e) {}
     if (!document.getElementById("sheet").hidden || window.location.hash) return;
     drawStats(); drawResults();
   }).catch(function () {});
@@ -856,29 +860,55 @@ document.getElementById("compare-back").addEventListener("click", function () {
 window.addEventListener("hashchange", showRoute);
 
 // Listings come from data.json. If a backend URL is set there, the live Sheet data replaces it.
-fetch("data.json")
-  .then(function (r) { return r.json(); })
-  .then(function (local) {
-    if (!local.backend || !local.backend.url) return local;
-    return fetch(local.backend.url + "?action=data").then(function (r) { return r.json(); })
-      .then(function (live) {
-        if (!live || !live.items || !live.stalls) throw new Error("bad data");
-        live.backend = local.backend; live.support = local.support; return live;
-      });
-  })
-  .then(function (json) {
-    data = json;
-    document.getElementById("support-note").textContent = (data.support && data.support.note) || "";
-    if (data.hostels.indexOf(state.hostel) === -1) state.hostel = data.hostels[0];
-    // The demo banner stays until a live backend URL is set AND the Sheet Config says demo is FALSE.
-    document.getElementById("demo-banner").hidden = !!(backendUrl() && !data.event.demo);
-    if (data.event.stockNote) document.getElementById("stock-note").textContent = data.event.stockNote;
+// A saved copy of the last live listing paints instantly; ordering waits for the fresh copy.
+var liveReady = false, booted = false;
+var noteTimer = setTimeout(function () {
+  var n = document.getElementById("gate-note");
+  if (n && !booted) n.textContent = "Still loading. The server is waking up, this can take a few more seconds.";
+}, 6000);
+
+function boot(json, live) {
+  data = json;
+  liveReady = live;
+  document.getElementById("support-note").textContent = (data.support && data.support.note) || "";
+  if (data.hostels.indexOf(state.hostel) === -1) state.hostel = data.hostels[0];
+  // The demo banner stays until a live backend URL is set AND the Sheet Config says demo is FALSE.
+  document.getElementById("demo-banner").hidden = !!(backendUrl() && !data.event.demo);
+  if (data.event.stockNote) document.getElementById("stock-note").textContent = data.event.stockNote;
+  if (!booted) {
+    booted = true;
+    clearTimeout(noteTimer);
+    var gn = document.getElementById("gate-note"); if (gn) gn.hidden = true;
     document.getElementById("gate-customer").disabled = false;
     document.getElementById("gate-business").disabled = false;
     setRole(role());
     if (window.location.hash === "#business") setRole("business");
+  } else if (sessionStorage.getItem("role") === "customer") {
+    drawStats(); drawResults(); showRoute();
+  }
+}
+
+var cached = null;
+try { cached = JSON.parse(localStorage.getItem("hmData") || "null"); } catch (e) { cached = null; }
+
+fetch("data.json")
+  .then(function (r) { return r.json(); })
+  .then(function (local) {
+    if (!local.backend || !local.backend.url) { boot(local, true); return; }
+    if (cached && cached.d && cached.d.items && Date.now() - cached.t < 86400000) {
+      cached.d.backend = local.backend; cached.d.support = local.support;
+      boot(cached.d, false);
+    }
+    return fetch(local.backend.url + "?action=data").then(function (r) { return r.json(); })
+      .then(function (live) {
+        if (!live || !live.items || !live.stalls) throw new Error("bad data");
+        live.backend = local.backend; live.support = local.support;
+        try { localStorage.setItem("hmData", JSON.stringify({ t: Date.now(), d: live })); } catch (e) {}
+        boot(live, true);
+      });
   })
   .catch(function () {
+    if (booted) return;
     // With a live backend there is no stale fallback: orderable items must be current.
     document.getElementById("gate").hidden = true;
     document.getElementById("app").hidden = false;
