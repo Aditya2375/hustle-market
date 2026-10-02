@@ -7,7 +7,7 @@
   <meta name="color-scheme" content="dark">
   <meta name="theme-color" content="#15100e">
   <meta name="referrer" content="no-referrer">
-  <meta name="robots" content="noindex">
+  <meta name="robots" content="noindex, nofollow">
   <title>Hustle Market | Uniworld</title>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -15,68 +15,130 @@
 
   <p class="demo-banner" id="demo-banner" hidden>DEMO. Placeholder stalls and prices. Orders sent from here go nowhere.</p>
 
-  <header class="bar">
-    <div class="wrap bar-in">
-      <a class="brand" href="./">Hustle <em>Market</em></a>
-      <span class="where">Uniworld 1 &amp; 2 &middot; Bengaluru</span>
-    </div>
-  </header>
-
-  <section class="hero">
-    <div class="wrap hero-in">
-      <div>
-        <p class="kicker">SST hustle event</p>
-        <h1>Every stall.<br>One place.</h1>
-        <p class="lede">Compare, choose and order from the students running the hustle. Delivered to your room.</p>
+  <!-- Landing gate: customer or business -->
+  <section class="gate" id="gate">
+    <div class="gate-in">
+      <p class="kicker">SST hustle event &middot; Uniworld 1 &amp; 2</p>
+      <h1 class="gate-title">Hustle <em>Market</em></h1>
+      <p class="lede">Who is this?</p>
+      <div class="gate-choices">
+        <button class="gate-btn" id="gate-customer" type="button" disabled>
+          <span class="gate-big">Customer</span>
+          <span class="gate-small">Browse every stall and order to your room</span>
+        </button>
+        <button class="gate-btn" id="gate-business" type="button" disabled>
+          <span class="gate-big">Business</span>
+          <span class="gate-small">Sign in to see your live orders</span>
+        </button>
       </div>
-      <ul class="stats" id="stats" aria-label="At a glance"></ul>
     </div>
   </section>
 
-  <div class="wrap shop">
-    <section class="controls" aria-label="Filters">
-      <div class="hostel" role="group" aria-label="Your hostel">
-        <p class="small-label">Deliver to</p>
-        <div class="toggle" id="hostel-toggle"></div>
+  <div id="app" hidden>
+    <header class="bar">
+      <div class="wrap bar-in">
+        <a class="brand" href="./">Hustle <em>Market</em></a>
+        <div class="search-box">
+          <label class="sr" for="search">Search items and stalls</label>
+          <input id="search" type="search" placeholder="Search brownie, chai, lamp..." autocomplete="off">
+        </div>
+        <div class="hostel" role="group" aria-label="Your hostel">
+          <span class="sr">Deliver to</span>
+          <div class="switch" id="hostel-toggle"></div>
+        </div>
+        <button class="linkbtn" id="to-business" type="button">Stall login</button>
       </div>
-      <label class="small-label" for="search">Search</label>
-      <input id="search" type="search" placeholder="Brownie, chai, lamp" autocomplete="off">
-      <p class="small-label cat-label">Browse</p>
-      <div class="chips" id="category-chips" role="group" aria-label="Categories"></div>
-      <div class="chips sub" id="sub-chips" role="group" aria-label="Food types"></div>
-    </section>
+      <nav class="cats" aria-label="Categories">
+        <div class="wrap">
+          <div class="chips" id="category-chips" role="group" aria-label="Categories"></div>
+          <div class="chips sub" id="sub-chips" role="group" aria-label="Food types"></div>
+        </div>
+      </nav>
+    </header>
 
-    <main>
-      <p class="count" id="count" aria-live="polite"></p>
-      <div id="results" class="grid"></div>
-
-      <section id="compare" class="compare" hidden>
-        <button class="back" id="compare-back" type="button">&larr; All items</button>
-        <h2 id="compare-title"></h2>
-        <p class="compare-note" id="compare-note"></p>
-        <div id="compare-body" class="grid"></div>
+    <div id="view-customer">
+      <section class="hero">
+        <div class="wrap hero-in">
+          <div>
+            <p class="kicker">SST hustle event</p>
+            <h1>Every stall.<br>One place.</h1>
+            <p class="lede">Compare, choose and order from the students running the hustle. Delivered to your room.</p>
+          </div>
+          <ul class="stats" id="stats" aria-label="At a glance"></ul>
+        </div>
       </section>
-    </main>
-  </div>
 
-  <section class="help" id="help">
-    <div class="wrap help-in"><div><h2>Something broken? Question?</h2>
-    <p id="support-note"></p></div>
-    <form id="bug-form" class="form" autocomplete="off">
-      <label>What happened?<textarea name="message" rows="4" required maxlength="1000"></textarea></label>
-      <label>Your name (optional)<input name="name" maxlength="60"></label>
-      <label>Phone or email, so we can reply (optional)<input name="contact" maxlength="80"></label>
-      <label>Is it about a stall? Which one (optional)<input name="stall" maxlength="80"></label>
-      <button class="order" type="submit">Send</button>
-      <p class="form-msg" id="bug-msg" aria-live="polite"></p>
-    </form>
+      <div class="wrap shop">
+        <main>
+          <p class="count" id="count" aria-live="polite"></p>
+          <div id="results" class="grid"></div>
+
+          <section id="compare" class="compare" hidden>
+            <button class="back" id="compare-back" type="button">&larr; All items</button>
+            <h2 id="compare-title"></h2>
+            <p class="compare-note" id="compare-note"></p>
+            <div id="compare-body" class="grid"></div>
+          </section>
+        </main>
+      </div>
+
+      <section class="help" id="help">
+        <div class="wrap help-in">
+          <div>
+            <h2>Something broken? Question?</h2>
+            <p id="support-note"></p>
+          </div>
+          <form id="bug-form" class="form" autocomplete="off">
+            <label>What happened?<textarea name="message" rows="4" required maxlength="1000"></textarea></label>
+            <label>Your name (optional)<input name="name" maxlength="60"></label>
+            <label>Phone or email, so we can reply (optional)<input name="contact" maxlength="80"></label>
+            <label>Is it about a stall? Which one (optional)<input name="stall" maxlength="80"></label>
+            <button class="order" type="submit">Send</button>
+            <p class="form-msg" id="bug-msg" aria-live="polite"></p>
+          </form>
+        </div>
+      </section>
+
+      <footer class="foot">
+        <p>No payments on this site. Order here, then the stall confirms and you settle with them directly.</p>
+        <p id="stock-note"></p>
+      </footer>
     </div>
-  </section>
 
-  <footer class="foot">
-    <p>No payments on this site. Order here, then the stall confirms and you settle with them directly.</p>
-    <p id="stock-note"></p>
-  </footer>
+    <!-- Business view: login + live dashboard -->
+    <div id="view-business" hidden>
+      <header class="dash-top">
+        <div class="wrap">
+          <p class="kicker">Live orders</p>
+          <h1 class="dash-title" id="stall-name">Stall login</h1>
+          <p class="tagline" id="status-line"></p>
+          <div class="dash-actions">
+            <button class="close signout" id="signout" type="button" hidden>Sign out</button>
+            <button class="close" id="to-customer" type="button">Customer view</button>
+          </div>
+        </div>
+      </header>
+      <section class="login wrap" id="login" hidden>
+        <form id="login-form" class="form" autocomplete="off">
+          <label>Stall name<input name="login" required maxlength="60" autocapitalize="off"></label>
+          <label>Access code<input name="code" required maxlength="30" autocapitalize="characters" spellcheck="false"></label>
+          <button class="order" type="submit">Open dashboard</button>
+          <p class="form-msg" id="login-msg" aria-live="polite"></p>
+        </form>
+      </section>
+      <main id="board" class="wrap" hidden>
+        <p class="count" id="new-count" aria-live="polite"></p>
+        <div id="orders"></div>
+        <h2 class="dash-h">Your items</h2>
+        <p class="dash-p" id="stock-help"></p>
+        <div id="items"></div>
+      </main>
+      <footer class="foot">
+        <p>Keep this page open. It refreshes every 30 seconds. Your access code is for your stall only. Do not share it.</p>
+        <p>Problem? Use the help form in the customer view.</p>
+      </footer>
+    </div>
+  </div>
 
   <div class="sheet" id="sheet" hidden>
     <div class="sheet-body" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
@@ -88,5 +150,6 @@
   </div>
 
   <script src="app.js"></script>
+  <script src="dash.js"></script>
 </body>
 </html>
