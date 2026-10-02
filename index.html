@@ -3,7 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self' https://script.google.com https://script.googleusercontent.com; base-uri 'none'; form-action 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src data:; connect-src 'self' https://script.google.com https://script.googleusercontent.com; base-uri 'none'; form-action 'self'">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#15100e">
   <meta name="referrer" content="no-referrer">
   <meta name="robots" content="noindex">
   <title>Hustle Market | Uniworld</title>
@@ -13,38 +15,53 @@
 
   <p class="demo-banner" id="demo-banner" hidden>DEMO. Placeholder stalls and prices. Orders sent from here go nowhere.</p>
 
-  <header class="top">
-    <p class="kicker">Uniworld 1 + 2 &middot; hustle event</p>
-    <h1 class="wordmark"><span>Hustle</span><span>Market</span></h1>
-    <p class="tagline">Every stall in one place. Compare, pick, order. Delivered to your room.</p>
+  <header class="bar">
+    <div class="wrap bar-in">
+      <a class="brand" href="./">Hustle <em>Market</em></a>
+      <span class="where">Uniworld 1 &amp; 2 &middot; Bengaluru</span>
+    </div>
   </header>
 
-  <section class="controls" aria-label="Filters">
-    <div class="hostel" role="group" aria-label="Your hostel">
-      <p class="small-label">Deliver to</p>
-      <div class="toggle" id="hostel-toggle"></div>
+  <section class="hero">
+    <div class="wrap hero-in">
+      <div>
+        <p class="kicker">SST hustle event</p>
+        <h1>Every stall.<br>One place.</h1>
+        <p class="lede">Compare, choose and order from the students running the hustle. Delivered to your room.</p>
+      </div>
+      <ul class="stats" id="stats" aria-label="At a glance"></ul>
     </div>
-    <label class="small-label" for="search">Search</label>
-    <input id="search" type="search" placeholder="brownie, chai, lamp..." autocomplete="off">
-    <div class="chips" id="category-chips" role="group" aria-label="Categories"></div>
-    <div class="chips sub" id="sub-chips" role="group" aria-label="Food types"></div>
   </section>
 
-  <main>
-    <p class="count" id="count" aria-live="polite"></p>
-    <div id="results"></div>
-
-    <section id="compare" class="compare" hidden>
-      <button class="back" id="compare-back" type="button">&larr; Back</button>
-      <h2 id="compare-title"></h2>
-      <p class="compare-note" id="compare-note"></p>
-      <div id="compare-body"></div>
+  <div class="wrap shop">
+    <section class="controls" aria-label="Filters">
+      <div class="hostel" role="group" aria-label="Your hostel">
+        <p class="small-label">Deliver to</p>
+        <div class="toggle" id="hostel-toggle"></div>
+      </div>
+      <label class="small-label" for="search">Search</label>
+      <input id="search" type="search" placeholder="Brownie, chai, lamp" autocomplete="off">
+      <p class="small-label cat-label">Browse</p>
+      <div class="chips" id="category-chips" role="group" aria-label="Categories"></div>
+      <div class="chips sub" id="sub-chips" role="group" aria-label="Food types"></div>
     </section>
-  </main>
+
+    <main>
+      <p class="count" id="count" aria-live="polite"></p>
+      <div id="results" class="grid"></div>
+
+      <section id="compare" class="compare" hidden>
+        <button class="back" id="compare-back" type="button">&larr; All items</button>
+        <h2 id="compare-title"></h2>
+        <p class="compare-note" id="compare-note"></p>
+        <div id="compare-body" class="grid"></div>
+      </section>
+    </main>
+  </div>
 
   <section class="help" id="help">
-    <h2>Something broken? Question?</h2>
-    <p id="support-note"></p>
+    <div class="wrap help-in"><div><h2>Something broken? Question?</h2>
+    <p id="support-note"></p></div>
     <form id="bug-form" class="form" autocomplete="off">
       <label>What happened?<textarea name="message" rows="4" required maxlength="1000"></textarea></label>
       <label>Your name (optional)<input name="name" maxlength="60"></label>
@@ -53,6 +70,7 @@
       <button class="order" type="submit">Send</button>
       <p class="form-msg" id="bug-msg" aria-live="polite"></p>
     </form>
+    </div>
   </section>
 
   <footer class="foot">
