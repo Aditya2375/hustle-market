@@ -104,6 +104,10 @@ function statusBtn(o, status, label, quiet) {
   b.type = "button";
   b.onclick = function () {
     b.disabled = true;
+    // Show the change at once; the server confirms on the next refresh.
+    o.status = status;
+    if (status === "deleted") lastOrders = lastOrders.filter(function (x) { return x.id !== o.id; });
+    drawOrders(lastOrders);
     api({ action: "status", id: o.id, status: status }).then(function () { refresh(); });
   };
   return b;
@@ -148,6 +152,7 @@ function drawItems(items) {
 }
 
 var lastItems = null;
+var lastOrders = [];
 var adminStalls = null;
 
 function drawAdmin(stalls) {
@@ -182,7 +187,8 @@ function refresh() {
     adminStalls = res.stalls || null;
     document.getElementById("admin").hidden = !isAdmin;
     if (isAdmin) drawAdmin(res.stalls || []);
-    drawOrders(res.orders);
+    lastOrders = res.orders;
+    drawOrders(lastOrders);
     lastItems = res.items || cfg.items.filter(function (i) { return i.stall === stallId; });
     drawItems(lastItems);
     var line = document.getElementById("status-line");
