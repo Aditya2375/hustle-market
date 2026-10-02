@@ -79,17 +79,47 @@ function drawOrdersTab() {
 }
 function drawManage() {
   body.appendChild(el("h2", "dash-h", "Stalls"));
-  body.appendChild(el("p", "dash-p", "Live stalls can take orders. Pending ones are hidden from the site."));
+  body.appendChild(el("p", "dash-p", "Live stalls can take orders. Pending and banned ones are hidden from the site."));
+  body.appendChild(el("h2", "dash-h", "Payment proofs"));
+  if (!(last.payments || []).length) body.appendChild(el("p", "empty", "No proofs yet."));
+  (last.payments || []).forEach(function (p) {
+    var st = last.stalls.filter(function (x) { return x.id === p.stallId; })[0];
+    var row = el("div", "item-row");
+    row.appendChild(el("span", "item-row-name", p.stallName + " \u00b7 UTR " + p.utr + " \u00b7 " + hm.clock(p.time) + (st ? " \u00b7 " + st.status.toUpperCase() : "")));
+    var vb = el("button", "order off quiet", "View screenshot"); vb.type = "button";
+    vb.onclick = function () {
+      vb.disabled = true;
+      hm.api({ action: "payshot", stallId: p.stallId }).then(function (r) {
+        vb.disabled = false;
+        if (!r.ok) { window.alert("No screenshot."); return; }
+        var ov = el("div", "shot-ov"); var im = document.createElement("img"); im.src = r.shot; im.alt = "Payment screenshot"; ov.appendChild(im);
+        ov.onclick = function () { ov.remove(); }; document.body.appendChild(ov);
+      });
+    };
+    row.appendChild(vb);
+    if (st && st.status !== "live") {
+      var lb = el("button", "order", "Set live"); lb.type = "button";
+      lb.onclick = function () { lb.disabled = true; st.status = "live"; draw(); hm.api({ action: "stallstatus", stallId: st.id, status: "live" }).then(function () { hm.refresh(); }); };
+      row.appendChild(lb);
+    }
+    body.appendChild(row);
+  });
+  body.appendChild(el("h2", "dash-h", "All stalls"));
   last.stalls.forEach(function (s) {
     var row = el("div", "item-row");
-    row.appendChild(el("span", "item-row-name", s.name + " \u00b7 " + (s.status === "live" ? "LIVE" : "PENDING")));
-    var b = el("button", "order" + (s.status === "live" ? " off" : ""), s.status === "live" ? "Set pending" : "Set live");
-    b.type = "button";
-    b.onclick = function () {
-      b.disabled = true; s.status = s.status === "live" ? "pending" : "live"; draw();
-      hm.api({ action: "stallstatus", stallId: s.id, status: s.status }).then(function () { hm.refresh(); });
+    var label = s.status === "live" ? "LIVE" : s.status === "banned" ? "BANNED" : "PENDING";
+    row.appendChild(el("span", "item-row-name", s.name + " \u00b7 " + label + (s.payRef ? " \u00b7 UTR " + s.payRef : "")));
+    function setTo(v) { return function () { this.disabled = true; s.status = v; draw(); hm.api({ action: "stallstatus", stallId: s.id, status: v }).then(function () { hm.refresh(); }); }; }
+    if (s.status !== "banned") {
+      var b = el("button", "order" + (s.status === "live" ? " off" : ""), s.status === "live" ? "Set pending" : "Set live"); b.type = "button";
+      b.onclick = setTo(s.status === "live" ? "pending" : "live"); row.appendChild(b);
+    }
+    var bb = el("button", "order off", s.status === "banned" ? "Unban" : "Ban"); bb.type = "button";
+    bb.onclick = function () {
+      if (s.status !== "banned" && !window.confirm("Ban " + s.name + "? They disappear from the site and cannot take orders.")) return;
+      setTo(s.status === "banned" ? "pending" : "banned").call(bb);
     };
-    row.appendChild(b); body.appendChild(row);
+    row.appendChild(bb); body.appendChild(row);
   });
   body.appendChild(el("h2", "dash-h", "Items"));
   last.items.forEach(function (it) {
