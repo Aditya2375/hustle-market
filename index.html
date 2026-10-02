@@ -42,9 +42,11 @@
     <div class="gate-in">
       <p class="kicker">Before you browse</p>
       <h1 class="gate-title">Who's <em>ordering?</em></h1>
-      <p class="lede">Stalls use these to confirm your order and reach you. They stay on this device.</p>
+      <p class="lede">We keep these so stalls can confirm your order and reach you. A stall only sees them after it approves your payment.</p>
       <form id="identify-form" class="form identify-form" autocomplete="on" novalidate>
         <label class="field">Your name<input name="name" required maxlength="60" autocomplete="name" placeholder="First and last name"></label>
+        <label class="field">Hostel<select name="hostel"></select></label>
+        <label class="field">Room number<input name="room" required maxlength="12" autocomplete="off" placeholder="Like A-204"></label>
         <div id="identify-mobile"></div>
         <button class="order" type="submit">Continue</button>
         <p class="form-msg" id="identify-msg" aria-live="polite"></p>
@@ -71,7 +73,7 @@
           <div class="menu" id="acct-menu" role="menu" hidden>
             <p class="menu-who" id="menu-who"></p>
             <button type="button" role="menuitem" id="menu-edit">Edit my details</button>
-            <button type="button" role="menuitem" id="to-business">Stall login</button>
+            <button type="button" role="menuitem" id="menu-tour">How it works</button>
             <button type="button" role="menuitem" id="menu-out" class="menu-danger">Sign out</button>
           </div>
         </div>
