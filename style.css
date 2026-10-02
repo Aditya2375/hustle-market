@@ -417,3 +417,8 @@ div.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px,
 .team-row input { width: 100%; padding: 12px 2px; border: 0; border-bottom: 1px solid var(--line-2); background: transparent; color: var(--ink); font: 400 16px/1.3 var(--serif); }
 .team-row input:focus { outline: 0; border-color: var(--brass); }
 @media (min-width: 760px) { .team-row { grid-template-columns: 90px 1fr 1fr 1.4fr; align-items: end; } }
+
+.pending-box { text-align: center; }
+.pending-box .setup-title { margin-bottom: 8px; }
+#pending-pay { margin: 26px 0 8px; }
+#pending-pay .pay-amt { font-size: 56px; }
