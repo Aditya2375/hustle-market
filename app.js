@@ -515,6 +515,18 @@ function drawAll() {
   showRoute();
 }
 
+// Keep listings fresh: sold-out and price changes show up within about 30 seconds.
+setInterval(function () {
+  if (document.hidden || !data || !backendUrl() || sessionStorage.getItem("role") !== "customer") return;
+  if (!document.getElementById("sheet").hidden || window.location.hash) return;
+  fetch(backendUrl() + "?action=data").then(function (r) { return r.json(); }).then(function (live) {
+    if (!live || !live.items || !live.stalls) return;
+    live.backend = data.backend; live.support = data.support; data = live;
+    if (!document.getElementById("sheet").hidden || window.location.hash) return;
+    drawStats(); drawResults();
+  }).catch(function () {});
+}, 30000);
+
 // ---------- start ----------
 
 // Gate is visible straight away; the app shows after the data loads and a role is known.
