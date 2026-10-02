@@ -182,9 +182,9 @@ function mobileProblem(v) {
   return "";
 }
 function profile() {
-  try { var p = JSON.parse(localStorage.getItem("hmMe") || "null"); return p && p.name && validMobile(p.mobile) ? p : null; } catch (e) { return null; }
+  try { var p = JSON.parse(localStorage.getItem("hmMe") || "null"); return p && p.name && validMobile(p.mobile) && p.room && p.hostel ? p : null; } catch (e) { return null; }
 }
-function saveProfile(name, mobile) { localStorage.setItem("hmMe", JSON.stringify({ name: name, mobile: mobile })); drawAccount(); }
+function saveProfile(name, mobile, hostel, room) { localStorage.setItem("hmMe", JSON.stringify({ name: name, mobile: mobile, hostel: hostel, room: room })); drawAccount(); }
 
 var MOBILE_HELP = "This is how the business contacts you about your order. Double-check it. A wrong number means they can't reach you and you lose your order.";
 
@@ -277,19 +277,17 @@ function openOrder(item) {
   qtyLabel.appendChild(row);
   form.appendChild(qtyLabel);
 
-  var hostel = document.createElement("select");
-  hostel.name = "hostel";
-  stall.hostels.forEach(function (h) {
-    var o = el("option", "", h); o.value = h;
-    if (h === state.hostel) o.selected = true;
-    hostel.appendChild(o);
-  });
-  form.appendChild(labelled("Hostel", hostel));
-  form.appendChild(labelled("Room number", input("room", "text", true)));
-  var me = profile() || {};
-  var nameIn = input("name", "text", true); nameIn.maxLength = 60; nameIn.value = me.name || ""; nameIn.autocomplete = "name";
-  form.appendChild(labelled("Your name", nameIn));
-  form.appendChild(mobileField("mobile", me.mobile || ""));
+  var me = profile() || {}, blockedHostel = false;
+  var deliver = el("div", "locked");
+  deliver.appendChild(el("p", "locked-k", "Delivering to"));
+  deliver.appendChild(el("p", "locked-v", me.name || ""));
+  deliver.appendChild(el("p", "locked-s", me.hostel + " \u00b7 Room " + me.room + " \u00b7 +91 " + (me.mobile || "").slice(0, 5) + " " + (me.mobile || "").slice(5)));
+  if (stall.hostels.indexOf(me.hostel) === -1) {
+    deliver.appendChild(el("p", "form-msg err", "This stall does not deliver to " + me.hostel + "."));
+    blockedHostel = true;
+  }
+  deliver.appendChild(el("small", "help-line", "To change these, open your account menu and choose Edit my details."));
+  form.appendChild(deliver);
   var trap = labelled("Website", input("website", "text", false));
   trap.className = "trap";
   trap.setAttribute("aria-hidden", "true");
@@ -313,6 +311,7 @@ function openOrder(item) {
 
   form.appendChild(total);
   var submit = el("button", "order", "Place order");
+  if (blockedHostel) submit.disabled = true;
   submit.type = "submit";
   var msg = el("p", "form-msg");
   msg.setAttribute("aria-live", "polite");
@@ -329,24 +328,20 @@ function openOrder(item) {
     (stall.orderFields || []).forEach(function (f) {
       custom[f.label] = form.elements["x_" + f.id].value;
     });
-    var mob = digits(form.elements.mobile.value);
-    if (!validMobile(mob)) {
-      submit.disabled = false; msg.className = "form-msg err";
-      msg.textContent = mobileProblem(mob) || "Check your mobile number.";
-      return;
-    }
-    saveProfile(form.elements.name.value.trim(), mob);
+    var who = profile();
+    if (!who) { submit.disabled = false; msg.className = "form-msg err"; msg.textContent = "Add your details in the account menu first."; return; }
+    var mob = who.mobile;
     send({
       action: "order", mobile: mob,
       stallId: stall.id, itemId: item.id, itemName: item.name, packLabel: item.packLabel,
       qty: qty, unitPrice: item.price, total: qty * item.price,
-      hostel: form.elements.hostel.value, room: form.elements.room.value.trim(),
-      name: form.elements.name.value.trim(), website: form.elements.website.value, device: deviceId(),
+      hostel: who.hostel, room: who.room,
+      name: who.name, website: form.elements.website.value, device: deviceId(),
       custom: custom
     }).then(function (res) {
       if (!res.ok) throw new Error(res.error || "failed");
-      var shownHostel = form.elements.hostel.value;
-      var shownRoom = form.elements.room.value;
+      var shownHostel = who.hostel;
+      var shownRoom = who.room;
       form.textContent = "";
       form.appendChild(paymentPanel(res, stall, item, qty, shownHostel, shownRoom));
     }).catch(function (err) {
@@ -681,6 +676,10 @@ function showIdentify(edit) {
   var form = document.getElementById("identify-form");
   var p = profile() || {};
   form.elements.name.value = p.name || "";
+  var hs = form.elements.hostel; hs.textContent = "";
+  (data && data.hostels ? data.hostels : ["Uniworld 1", "Uniworld 2"]).forEach(function (h) { var o = el("option", "", h); o.value = h; hs.appendChild(o); });
+  hs.value = p.hostel || state.hostel || hs.options[0].value;
+  form.elements.room.value = p.room || "";
   var holder = document.getElementById("identify-mobile");
   holder.textContent = "";
   holder.appendChild(mobileField("mobile", p.mobile || ""));
@@ -699,9 +698,14 @@ document.getElementById("identify-form").addEventListener("submit", function (e)
   var name = f.elements.name.value.trim(), mob = digits(f.elements.mobile.value);
   if (!/^[\p{L}][\p{L} .'\-]{1,59}$/u.test(name)) { msg.className = "form-msg err"; msg.textContent = "Enter your name."; return; }
   var mp = mobileProblem(mob); if (mp) { msg.className = "form-msg err"; msg.textContent = mp; return; }
-  saveProfile(name, mob);
+  var room = f.elements.room.value.trim().toUpperCase(), hostelSel = f.elements.hostel.value;
+  if (!/^[A-Z0-9][A-Z0-9 \-\/]{0,11}$/.test(room)) { msg.className = "form-msg err"; msg.textContent = "Enter your room number, like A-204."; return; }
+  saveProfile(name, mob, hostelSel, room);
+  try { send({ action: "register", name: name, mobile: mob, hostel: hostelSel, room: room, device: deviceId(), website: "" }).catch(function () {}); } catch (e) {}
+  state.hostel = hostelSel; localStorage.setItem("hostel", hostelSel);
   document.getElementById("identify").hidden = true;
   setRole("customer");
+  startTour(false);
 });
 document.getElementById("identify-back").addEventListener("click", function () {
   document.getElementById("identify").hidden = true;
@@ -761,6 +765,9 @@ function drawStats() {
 }
 
 function drawAll() {
+  var pr = profile();
+  if (pr && data.hostels.indexOf(pr.hostel) > -1) state.hostel = pr.hostel;
+  var ht = document.querySelector(".bar .hostel"); if (ht) ht.hidden = true;
   drawStats();
   drawHostelToggle();
   drawCategoryChips();
@@ -946,11 +953,43 @@ document.getElementById("bug-form").addEventListener("submit", function (e) {
 
 document.getElementById("gate-customer").addEventListener("click", function () { if (profile()) setRole("customer"); else showIdentify(false); });
 document.getElementById("menu-edit").addEventListener("click", function () { showIdentify(true); });
+document.getElementById("menu-tour").addEventListener("click", function () { startTour(true); });
 document.getElementById("menu-out").addEventListener("click", function () {
   localStorage.removeItem("hmMe"); sessionStorage.removeItem("role"); drawAccount(); setRole("");
 });
 window.hmMenu("acct-btn", "acct-menu");
 drawAccount();
 document.getElementById("gate-business").addEventListener("click", function () { window.location.hash = "#business"; setRole("business"); });
-document.getElementById("to-business").addEventListener("click", function () { window.location.hash = "#business"; setRole("business"); });
 document.getElementById("to-customer").addEventListener("click", function () { setRole("customer"); });
+
+// ---------- first-visit tour ----------
+var TOUR = [
+  ["Browse", "Every stall in your hostel in one place. Tap + Compare on as many items as you like, then compare them side by side."],
+  ["Order", "Pick an item, choose how many, and place the order. Your name, room and number are already filled in."],
+  ["Pay the stall directly", "Scan the QR with any UPI app. The money goes straight to the stall. This site never touches it."],
+  ["Wait for the check", "The stall checks your payment and approves it. Your order is confirmed once they do."],
+  ["Get it at your room", "The stall delivers to your room and contacts you on your number if needed. Fix your details any time from the account menu."]
+];
+function startTour(force) {
+  if (!force) { try { if (localStorage.getItem("hmTour")) return; } catch (e) {} }
+  var i = 0;
+  var wrap = el("div", "tour"); wrap.setAttribute("role", "dialog"); wrap.setAttribute("aria-modal", "true"); wrap.setAttribute("aria-label", "How it works");
+  var card = el("div", "tour-card"); wrap.appendChild(card);
+  function done() { try { localStorage.setItem("hmTour", "1"); } catch (e) {} wrap.remove(); }
+  function paint() {
+    card.textContent = "";
+    card.appendChild(el("p", "tour-step", "Step " + (i + 1) + " of " + TOUR.length));
+    card.appendChild(el("h2", "tour-title", TOUR[i][0]));
+    card.appendChild(el("p", "tour-text", TOUR[i][1]));
+    var dots = el("div", "tour-dots");
+    TOUR.forEach(function (_, k) { dots.appendChild(el("span", k === i ? "on" : "")); });
+    card.appendChild(dots);
+    var row = el("div", "tour-row");
+    var skip = el("button", "linkbtn", "Skip"); skip.type = "button"; skip.onclick = done;
+    var next = el("button", "order", i === TOUR.length - 1 ? "Start browsing" : "Next"); next.type = "button";
+    next.onclick = function () { if (i === TOUR.length - 1) done(); else { i++; paint(); } };
+    row.appendChild(skip); row.appendChild(next); card.appendChild(row);
+    next.focus();
+  }
+  document.body.appendChild(wrap); paint();
+}
