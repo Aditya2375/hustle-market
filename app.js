@@ -169,7 +169,18 @@ function input(name, type, required) {
 }
 
 function digits(v) { return String(v || "").replace(/\D/g, "").replace(/^91(?=\d{10}$)/, ""); }
-function validMobile(v) { return /^[6-9]\d{9}$/.test(v); }
+function validMobile(v) { return /^[6-9]\d{9}$/.test(v) && mobileProblem(v) === ""; }
+// Friendly sanity check, not verification: catches obviously fake numbers.
+function mobileProblem(v) {
+  if (!/^\d{10}$/.test(v)) return "Enter a 10-digit mobile number.";
+  if (!/^[6-9]/.test(v)) return "Indian mobile numbers start with 6, 7, 8 or 9. Please check your number.";
+  if (/^(\d)\1{9}$/.test(v)) return "That number doesn't look real. Please enter your own mobile number.";
+  var asc = "01234567890123456789", desc = "98765432109876543210";
+  if (asc.indexOf(v) > -1 || desc.indexOf(v) > -1) return "That number doesn't look real. Please enter your own mobile number.";
+  if (/^(\d{2})\1{4}$/.test(v) || /^(\d{5})\1$/.test(v)) return "That number doesn't look real. Please enter your own mobile number.";
+  if (/(\d)\1{6,}/.test(v)) return "That number doesn't look real. Please enter your own mobile number.";
+  return "";
+}
 function profile() {
   try { var p = JSON.parse(localStorage.getItem("hmMe") || "null"); return p && p.name && validMobile(p.mobile) ? p : null; } catch (e) { return null; }
 }
@@ -321,7 +332,7 @@ function openOrder(item) {
     var mob = digits(form.elements.mobile.value);
     if (!validMobile(mob)) {
       submit.disabled = false; msg.className = "form-msg err";
-      msg.textContent = "Check your mobile number. It should be 10 digits.";
+      msg.textContent = mobileProblem(mob) || "Check your mobile number.";
       return;
     }
     saveProfile(form.elements.name.value.trim(), mob);
@@ -684,7 +695,7 @@ document.getElementById("identify-form").addEventListener("submit", function (e)
   var f = e.target, msg = document.getElementById("identify-msg");
   var name = f.elements.name.value.trim(), mob = digits(f.elements.mobile.value);
   if (!/^[\p{L}][\p{L} .'\-]{1,59}$/u.test(name)) { msg.className = "form-msg err"; msg.textContent = "Enter your name."; return; }
-  if (!validMobile(mob)) { msg.className = "form-msg err"; msg.textContent = "Enter a 10-digit mobile number."; return; }
+  var mp = mobileProblem(mob); if (mp) { msg.className = "form-msg err"; msg.textContent = mp; return; }
   saveProfile(name, mob);
   document.getElementById("identify").hidden = true;
   setRole("customer");
@@ -776,7 +787,66 @@ setInterval(function () {
 document.getElementById("search").addEventListener("input", function (e) {
   state.query = e.target.value;
   drawResults();
+  drawSuggest();
 });
+
+// ---------- search suggestions ----------
+var sugIndex = -1, sugList = [];
+function suggestions(q) {
+  q = q.trim().toLowerCase();
+  if (!q) return [];
+  var pool = {};
+  function add(text, kind) { if (text && !pool[text.toLowerCase()]) pool[text.toLowerCase()] = { text: text, kind: kind }; }
+  data.items.forEach(function (i) {
+    if (!deliversHere(stallById(i.stall))) return;
+    add(i.name, "Item"); add(i.sub, "Type"); add(keyLabel(i.compare), "Item");
+  });
+  data.stalls.forEach(function (s) { add(s.name, "Stall"); });
+  var out = Object.keys(pool).map(function (k) {
+    var t = k, p = pool[k], rank = t.indexOf(q) === 0 ? 0 : (t.indexOf(" " + q) > -1 ? 1 : (t.indexOf(q) > -1 ? 2 : 9));
+    return { text: p.text, kind: p.kind, rank: rank };
+  }).filter(function (x) { return x.rank < 9 && x.text.toLowerCase() !== q; });
+  out.sort(function (a, b) { return a.rank - b.rank || a.text.length - b.text.length; });
+  return out.slice(0, 6);
+}
+function drawSuggest() {
+  var box = document.getElementById("suggest");
+  if (!box) return;
+  sugList = suggestions(document.getElementById("search").value);
+  sugIndex = -1;
+  box.textContent = "";
+  box.hidden = sugList.length === 0;
+  sugList.forEach(function (s, i) {
+    var b = el("button", "sug", ""); b.type = "button"; b.setAttribute("role", "option");
+    var q = document.getElementById("search").value.trim(), at = s.text.toLowerCase().indexOf(q.toLowerCase());
+    var lab = el("span", "");
+    lab.appendChild(document.createTextNode(s.text.slice(0, at)));
+    lab.appendChild(el("b", "", s.text.slice(at, at + q.length)));
+    lab.appendChild(document.createTextNode(s.text.slice(at + q.length)));
+    b.appendChild(lab);
+    b.appendChild(el("i", "", s.kind));
+    b.addEventListener("mousedown", function (ev) { ev.preventDefault(); pickSuggest(i); });
+    box.appendChild(b);
+  });
+}
+function pickSuggest(i) {
+  var s = sugList[i]; if (!s) return;
+  var inp = document.getElementById("search");
+  inp.value = s.text; state.query = s.text; drawResults();
+  document.getElementById("suggest").hidden = true; sugList = [];
+}
+function markSuggest() {
+  Array.prototype.forEach.call(document.getElementById("suggest").children, function (c, k) { c.classList.toggle("on", k === sugIndex); });
+}
+document.getElementById("search").addEventListener("keydown", function (e) {
+  if (!sugList.length) return;
+  if (e.key === "ArrowDown") { e.preventDefault(); sugIndex = (sugIndex + 1) % sugList.length; markSuggest(); }
+  else if (e.key === "ArrowUp") { e.preventDefault(); sugIndex = (sugIndex - 1 + sugList.length) % sugList.length; markSuggest(); }
+  else if (e.key === "Enter" && sugIndex > -1) { e.preventDefault(); pickSuggest(sugIndex); }
+  else if (e.key === "Escape") { document.getElementById("suggest").hidden = true; }
+});
+document.getElementById("search").addEventListener("blur", function () { setTimeout(function () { document.getElementById("suggest").hidden = true; }, 120); });
+document.getElementById("search").addEventListener("focus", drawSuggest);
 
 document.getElementById("cmp-clear").addEventListener("click", function () { cmpIds = []; saveCmp(); drawResults(); });
 document.getElementById("compare-back").addEventListener("click", function () {
