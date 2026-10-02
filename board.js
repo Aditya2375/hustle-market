@@ -116,6 +116,7 @@ function draw() {
   if (!last) return;
   body.textContent = "";
   Array.prototype.forEach.call(bar.children, function (b) { b.classList.toggle("on", b.dataset.k === tab); });
+  var hh = document.getElementById("stall-name"); if (hh) hh.textContent = NAMES[tab];
   ({ overview: drawOverview, ops: drawOps, orders: drawOrdersTab, manage: drawManage })[tab]();
 }
 return { update: function (res) { last = res; draw(); } };
