@@ -340,6 +340,7 @@ function drawResults() {
   items.forEach(function (item) {
     var stall = stallById(item.stall);
     var card = el("article", "card cat-" + item.category + (item.inStock ? "" : " gone"));
+    card.appendChild(plate(item));
 
     var head = el("div", "card-head");
     head.appendChild(el("h2", "item-name", item.name));
@@ -369,6 +370,14 @@ function drawResults() {
   });
 }
 
+// Typographic stand-in for a photo: soft tinted block with the item's first letter
+function plate(item) {
+  var p = el("div", "plate");
+  p.appendChild(el("span", "plate-letter", item.name.charAt(0)));
+  p.appendChild(el("span", "plate-cat", item.sub || item.category));
+  return p;
+}
+
 // "brownie-box" -> "Brownie box"
 function keyLabel(key) {
   var text = key.replace(/-/g, " ");
@@ -394,6 +403,7 @@ function drawCompare(key) {
   rows.forEach(function (item, index) {
     var stall = stallById(item.stall);
     var card = el("article", "card cat-" + item.category + (item.inStock ? "" : " gone"));
+    card.appendChild(plate(item));
 
     var head = el("div", "card-head");
     head.appendChild(el("h3", "item-name", stall.name));
@@ -441,7 +451,21 @@ function showRoute() {
   }
 }
 
+function drawStats() {
+  var box = document.getElementById("stats");
+  box.textContent = "";
+  var live = data.stalls.filter(liveStall);
+  var rows = [[live.length, "Stalls"], [data.items.filter(function (i) { return liveStall(stallById(i.stall)); }).length, "Items"], [data.hostels.length, "Hostels"]];
+  rows.forEach(function (r) {
+    var li = el("li");
+    li.appendChild(el("b", "", String(r[0])));
+    li.appendChild(el("span", "", r[1]));
+    box.appendChild(li);
+  });
+}
+
 function drawAll() {
+  drawStats();
   drawHostelToggle();
   drawCategoryChips();
   drawResults();
