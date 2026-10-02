@@ -347,3 +347,57 @@ div.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px,
 .gate-note { margin: 28px 0 0; font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); text-align: center; animation: pulse 1.6s ease-in-out infinite; }
 .gate-note[hidden] { display: none; }
 @keyframes pulse { 50% { opacity: .45; } }
+
+.locked { padding: 18px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.locked p { margin: 0; }
+.locked-k { font-size: 10px; font-weight: 600; letter-spacing: .24em; text-transform: uppercase; color: var(--brass); }
+.locked-v { margin-top: 8px !important; font: 400 24px/1.2 var(--display); }
+.locked-s { margin-top: 4px !important; font-size: 14px; color: var(--muted); }
+.locked .help-line { display: block; margin-top: 12px; }
+.tour { position: fixed; inset: 0; z-index: 90; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(8, 5, 4, .78); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); animation: fade .3s ease both; }
+.tour-card { width: 100%; max-width: 460px; padding: 36px 32px 28px; background: var(--paper); border: 1px solid var(--line-2); border-radius: 18px; box-shadow: 0 30px 80px rgba(0, 0, 0, .6); animation: rise .4s var(--ease) both; }
+.tour-step { margin: 0; font-size: 10px; font-weight: 600; letter-spacing: .24em; text-transform: uppercase; color: var(--brass); }
+.tour-title { margin: 14px 0 12px; font: 400 40px/1 var(--display); letter-spacing: -.02em; }
+.tour-text { margin: 0; color: var(--muted); font-size: 16px; line-height: 1.6; }
+.tour-dots { display: flex; gap: 8px; margin: 28px 0 24px; }
+.tour-dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--line-2); }
+.tour-dots span.on { background: var(--brass); }
+.tour-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.field select { width: 100%; }
+
+.dash-complaint { padding-top: 56px; padding-bottom: 72px; max-width: 640px; }
+.dash-complaint[hidden] { display: none; }
+.dash-complaint .form { margin-top: 20px; }
+
+/* stall dashboard tabs */
+.tabp[hidden] { display: none; }
+.tabp { padding-top: 12px; }
+.tab-n { display: inline-block; min-width: 18px; margin-left: 8px; padding: 2px 6px; border-radius: 999px; background: var(--brass); color: #fff; font-size: 10px; letter-spacing: 0; line-height: 1.3; text-align: center; vertical-align: 1px; }
+.tab-n:empty { display: none; }
+.osearch { display: block; margin: 20px 0 4px; }
+.osearch input { width: 100%; }
+.menu-tools { display: flex; flex-wrap: wrap; gap: 10px; margin: 18px 0 6px; }
+.mrow { gap: 14px; }
+.mrow-main { display: grid; gap: 4px; flex: 1 1 220px; min-width: 0; }
+.mrow-meta { font-size: 12px; color: var(--muted); }
+.mrow-acts { display: flex; gap: 8px; flex-wrap: wrap; }
+.mrow.is-out .item-row-name { color: var(--muted); }
+.pill { padding: 6px 12px; border: 1px solid var(--line-2); border-radius: 999px; font-size: 10px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase; }
+.pill-in { color: var(--ok); border-color: var(--ok); }
+.pill-out { color: var(--muted); }
+.inline-edit { display: flex; flex-wrap: wrap; gap: 10px; width: 100%; align-items: center; }
+.inline-edit input { flex: 1 1 200px; min-width: 0; }
+.inline-edit input + input { flex: 0 1 120px; }
+.inline-edit .form-msg { flex-basis: 100%; margin: 0; }
+.add-form { max-width: 560px; margin-top: 8px; }
+.kv { display: flex; justify-content: space-between; gap: 18px; padding: 16px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.kv-k { font-size: 10px; font-weight: 600; letter-spacing: .24em; text-transform: uppercase; color: var(--muted); }
+.kv-v { font-size: 15px; word-break: break-word; }
+#p-settings .actions { margin: 22px 0 6px; }
+.steps { margin: 12px 0 0; padding-left: 20px; display: grid; gap: 10px; font-size: 14px; color: var(--muted); max-width: 40em; }
+.dash-h.first { margin-top: 28px; }
+#p-support .dash-complaint { padding: 0; margin-top: 8px; max-width: 640px; }
+.stats .stat-n { word-break: break-word; }
+.inline-edit input { width: 100%; padding: 12px 14px; border: 1px solid var(--line-2); border-radius: 0; background: transparent; color: var(--ink); font: inherit; font-size: 15px; }
+.inline-edit input:focus { outline: 0; border-color: var(--brass); }
+@media (max-width: 560px) { #stabs .tab { padding: 14px 6px; font-size: 9.5px; letter-spacing: .06em; flex: 1 1 auto; text-align: center; } #stabs .tab-n { margin-left: 4px; padding: 1px 5px; } }
