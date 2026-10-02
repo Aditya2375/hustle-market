@@ -34,6 +34,22 @@
     </div>
   </section>
 
+  <!-- Customer details: asked once, kept on this device -->
+  <section class="gate identify" id="identify" hidden>
+    <div class="gate-in">
+      <p class="kicker">Before you browse</p>
+      <h1 class="gate-title">Who's <em>ordering?</em></h1>
+      <p class="lede">Stalls use these to confirm your order and reach you. They stay on this device.</p>
+      <form id="identify-form" class="form identify-form" autocomplete="on" novalidate>
+        <label class="field">Your name<input name="name" required maxlength="60" autocomplete="name" placeholder="First and last name"></label>
+        <div id="identify-mobile"></div>
+        <button class="order" type="submit">Continue</button>
+        <p class="form-msg" id="identify-msg" aria-live="polite"></p>
+        <button class="linkbtn back-link" id="identify-back" type="button">&larr; Back</button>
+      </form>
+    </div>
+  </section>
+
   <div id="app" hidden>
     <header class="bar">
       <div class="wrap bar-in">
@@ -46,7 +62,15 @@
           <span class="sr">Deliver to</span>
           <div class="switch" id="hostel-toggle"></div>
         </div>
-        <button class="linkbtn" id="to-business" type="button">Stall login</button>
+        <div class="acct" id="acct-customer">
+          <button class="acct-btn" id="acct-btn" type="button" aria-haspopup="menu" aria-expanded="false"><span class="avatar" id="acct-avatar">?</span><span class="acct-name" id="acct-name">Account</span></button>
+          <div class="menu" id="acct-menu" role="menu" hidden>
+            <p class="menu-who" id="menu-who"></p>
+            <button type="button" role="menuitem" id="menu-edit">Edit my details</button>
+            <button type="button" role="menuitem" id="to-business">Stall login</button>
+            <button type="button" role="menuitem" id="menu-out" class="menu-danger">Sign out</button>
+          </div>
+        </div>
       </div>
       <nav class="cats" aria-label="Categories">
         <div class="wrap">
@@ -101,30 +125,53 @@
 
       <div id="ext" class="wrap" hidden></div>
       <footer class="foot">
-        <p>No payments on this site. Order here, then the stall confirms and you settle with them directly.</p>
+        <p>You pay the stall directly from your own UPI app. This site never holds or moves money, and the stall confirms your order once it verifies your payment.</p>
         <p id="stock-note"></p>
       </footer>
     </div>
 
     <!-- Business view: login + live dashboard -->
     <div id="view-business" hidden>
-      <header class="dash-top">
-        <div class="wrap">
-          <p class="kicker">Live orders</p>
-          <h1 class="dash-title" id="stall-name">Stall login</h1>
-          <p class="tagline" id="status-line"></p>
-          <div class="dash-actions">
-            <button class="close signout" id="signout" type="button" hidden>Sign out</button>
-            <button class="close" id="to-customer" type="button">Customer view</button>
+      <header class="bar dash-bar">
+        <div class="wrap bar-in">
+          <a class="brand" href="./">Hustle <em>Market</em></a>
+          <span class="bar-tag">Stall dashboard</span>
+          <div class="acct" id="acct-business">
+            <button class="acct-btn" id="bacct-btn" type="button" aria-haspopup="menu" aria-expanded="false"><span class="avatar" id="bacct-avatar">S</span><span class="acct-name" id="bacct-name">Stall</span></button>
+            <div class="menu" id="bacct-menu" role="menu" hidden>
+              <p class="menu-who" id="bmenu-who"></p>
+              <button type="button" role="menuitem" id="bmenu-settings">Payment and delivery details</button>
+              <button type="button" role="menuitem" id="to-customer">Customer view</button>
+              <button type="button" role="menuitem" id="signout" class="menu-danger">Sign out</button>
+            </div>
           </div>
         </div>
       </header>
+      <section class="dash-head wrap">
+        <p class="kicker" id="dash-kicker">Stall dashboard</p>
+        <h1 class="dash-title" id="stall-name">Stall login</h1>
+        <p class="tagline" id="status-line"></p>
+      </section>
       <section class="login wrap" id="login" hidden>
         <form id="login-form" class="form" autocomplete="off">
           <label>Stall name<input name="login" required maxlength="60" autocapitalize="off"></label>
           <label>Access code<input name="code" required maxlength="30" autocapitalize="characters" spellcheck="false"></label>
           <button class="order" type="submit">Open dashboard</button>
           <p class="form-msg" id="login-msg" aria-live="polite"></p>
+        </form>
+      </section>
+      <section class="login wrap" id="setup" hidden>
+        <form id="setup-form" class="form setup-form" autocomplete="off" novalidate>
+          <p class="kicker" id="setup-kicker">Set up your stall</p>
+          <h2 class="setup-title" id="setup-title">A few details before you start</h2>
+          <p class="dash-p" id="setup-lede">Customers pay you directly. Your UPI ID makes the payment QR code at checkout. Nothing here is shown publicly except your stall name, the hostels you deliver to, and your items.</p>
+          <label class="field">Owner name<input name="owner" required maxlength="60" autocomplete="off" placeholder="Who runs this stall"></label>
+          <label class="field">UPI ID<input name="upi" required maxlength="100" autocapitalize="off" spellcheck="false" autocomplete="off" placeholder="name@bank"><small class="help-line">Customers scan a QR code that pays this ID. Check it carefully. Money goes straight to it.</small></label>
+          <fieldset class="field"><legend>Hostels you deliver to</legend><div class="check-row" id="setup-hostels"></div></fieldset>
+          <label class="field">Most one customer can order at once<select name="maxQty" id="setup-max"></select></label>
+          <button class="order" type="submit" id="setup-submit">Save and open dashboard</button>
+          <button class="linkbtn back-link" type="button" id="setup-cancel" hidden>Cancel</button>
+          <p class="form-msg" id="setup-msg" aria-live="polite"></p>
         </form>
       </section>
       <main id="board" class="wrap" hidden>
@@ -150,6 +197,7 @@
     </div>
   </div>
 
+  <script src="qr.js"></script>
   <script src="app.js"></script>
   <script src="dash.js"></script>
 </body>
