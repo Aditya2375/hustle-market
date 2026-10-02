@@ -42,7 +42,6 @@ function api(payload) {
 
   payload.login = login.login;
   payload.code = login.code;
-  if (payload.action === "orders" && !view) payload.v = 1;
   var t0 = Date.now();
   return fetch(cfg.backend.url, { method: "POST", body: JSON.stringify(payload) }).then(function (r) { return r.json(); }).then(function (j) { hm.lastMs = Date.now() - t0; return j; });
 }
@@ -152,15 +151,27 @@ function show(signedIn) {
   document.getElementById("signout").hidden = !signedIn;
 }
 
+function loadBoard() {
+  return new Promise(function (ok, no) {
+    var s = document.createElement("script");
+    s.src = "board.js";
+    s.onload = ok; s.onerror = no;
+    document.head.appendChild(s);
+  });
+}
+
 function refresh() {
-  return api(view ? { action: "orders" } : { action: "orders", v: 1 }).then(function (res) {
+  return api({ action: "orders" }).then(async function (res) {
     if (!res.ok) throw new Error(res.error || "failed");
     show(true);
     document.getElementById("stall-name").textContent = res.stall.name;
     stallId = res.stall.id;
     lastOrders = res.orders;
-    if (res.view) {
-      try { view = new Function("hm", res.view)(hm); } catch (e) { view = null; }
+    if (res.overview && !view) {
+      try {
+        if (!window.hmBoard) await loadBoard();
+        view = window.hmBoard(hm);
+      } catch (e) { view = null; }
     }
     var ext = document.getElementById("ext");
     ext.hidden = !view;
