@@ -428,3 +428,8 @@ div.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px,
 .hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
 .signup-done { text-align: center; }
 .signup-done .pay-id { font-size: 22px; letter-spacing: .08em; }
+
+.proof { margin-top: 22px; text-align: left; }
+.proof .field { display: block; margin-bottom: 14px; }
+.shot-ov { position: fixed; inset: 0; z-index: 90; background: rgba(0,0,0,.88); display: flex; align-items: center; justify-content: center; padding: 20px; cursor: zoom-out; }
+.shot-ov img { max-width: 100%; max-height: 100%; border-radius: 10px; }
