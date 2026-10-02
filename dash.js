@@ -11,6 +11,7 @@ var started = false;
 var cfg = null;
 var seen = JSON.parse(sessionStorage.getItem("seen") || "[]");
 var firstLoad = true;
+var isAdmin = false;
 
 function el(tag, cls, text) {
   var n = document.createElement(tag);
@@ -73,6 +74,7 @@ function drawOrders(orders) {
 
     var where = el("p", "dash-where", o.hostel + " \u00b7 Room " + o.room);
     card.appendChild(where);
+    if (isAdmin && o.stallName) card.appendChild(el("p", "best", o.stallName));
     card.appendChild(el("p", "stall", o.name + " \u00b7 " + clock(o.time) + " \u00b7 " + o.id));
 
     var extra = o.custom || {};
@@ -111,12 +113,25 @@ function drawItems(items) {
   var box = document.getElementById("items");
   box.textContent = "";
   var real = cfg.backend && cfg.backend.url;
-  document.getElementById("stock-help").textContent = real
+  document.getElementById("stock-help").textContent = isAdmin ? "Every item across every stall. Sold out and price changes reach the site within about a minute." : real
     ? "Out of something? Tap Sold out. It stops being orderable on the site within about a minute."
     : "Demo mode: stock buttons are off.";
   items.forEach(function (it) {
     var row = el("div", "item-row");
-    row.appendChild(el("span", "item-row-name", it.name + " \u00b7 \u20B9" + it.price));
+    var stallLabel = isAdmin && adminStalls ? (adminStalls.filter(function (s) { return s.id === it.stall; })[0] || {}).name : "";
+    row.appendChild(el("span", "item-row-name", (stallLabel ? stallLabel + " \u00b7 " : "") + it.name + " \u00b7 \u20B9" + it.price));
+    if (isAdmin) {
+      var pb = el("button", "order off quiet", "Edit price");
+      pb.type = "button";
+      pb.onclick = function () {
+        var v = window.prompt("New price in rupees for " + it.name, String(it.price));
+        if (v === null) return;
+        var n = Number(v);
+        if (!(n > 0 && n < 100000)) { window.alert("Enter a price above 0."); return; }
+        api({ action: "edititem", itemId: it.id, price: n }).then(function (r) { if (r.ok) { it.price = n; drawItems(items); } else window.alert("Could not save. Try again."); });
+      };
+      row.appendChild(pb);
+    }
     var b = el("button", "order" + (it.inStock ? "" : " off"), it.inStock ? "Sold out" : "Back in stock");
     b.type = "button";
     b.disabled = !real;
@@ -133,6 +148,24 @@ function drawItems(items) {
 }
 
 var lastItems = null;
+var adminStalls = null;
+
+function drawAdmin(stalls) {
+  var box = document.getElementById("admin-stalls");
+  box.textContent = "";
+  stalls.forEach(function (s) {
+    var row = el("div", "item-row");
+    row.appendChild(el("span", "item-row-name", s.name + " \u00b7 " + (s.status === "live" ? "LIVE" : "PENDING")));
+    var b = el("button", "order" + (s.status === "live" ? " off" : ""), s.status === "live" ? "Set pending" : "Set live");
+    b.type = "button";
+    b.onclick = function () {
+      b.disabled = true;
+      api({ action: "stallstatus", stallId: s.id, status: s.status === "live" ? "pending" : "live" }).then(function () { refresh(); });
+    };
+    row.appendChild(b);
+    box.appendChild(row);
+  });
+}
 function show(signedIn) {
   document.getElementById("login").hidden = signedIn;
   document.getElementById("board").hidden = !signedIn;
@@ -145,6 +178,10 @@ function refresh() {
     show(true);
     document.getElementById("stall-name").textContent = res.stall.name;
     stallId = res.stall.id;
+    isAdmin = !!res.admin;
+    adminStalls = res.stalls || null;
+    document.getElementById("admin").hidden = !isAdmin;
+    if (isAdmin) drawAdmin(res.stalls || []);
     drawOrders(res.orders);
     lastItems = res.items || cfg.items.filter(function (i) { return i.stall === stallId; });
     drawItems(lastItems);
@@ -161,7 +198,7 @@ function refresh() {
       clearInterval(timer); timer = null;
       document.getElementById("stall-name").textContent = "Stall login";
       line.textContent = "";
-      document.getElementById("login-msg").textContent = "Wrong stall name or code.";
+      document.getElementById("login-msg").textContent = "Wrong name or code.";
       return;
     }
     line.classList.add("err");
