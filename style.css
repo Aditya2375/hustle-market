@@ -328,3 +328,16 @@ input:focus, select:focus, textarea:focus, button:focus-visible, a:focus-visible
   .cats .chip { font-size: 21px; padding: 0 18px; }
 }
 @media (min-width: 1400px) { .grid { grid-template-columns: repeat(4, 1fr); } .wrap { max-width: 1360px; } }
+
+/* Dashboard tabs and number tiles */
+.tabs { display: flex; gap: 8px; overflow-x: auto; margin: 22px 0 18px; padding-bottom: 4px; }
+.tab { flex: none; min-height: 40px; padding: 0 16px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--muted); font: inherit; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; }
+.tab.on { background: var(--accent); color: #1b1410; border-color: var(--accent); }
+.stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 8px; }
+@media (min-width: 900px) { .stats { grid-template-columns: repeat(4, 1fr); } }
+.stat { padding: 18px 16px; background: var(--paper); border: 1px solid var(--line); border-radius: 3px; }
+.stat-n { margin: 0; font-family: var(--serif); font-size: 34px; line-height: 1.1; }
+.stat-l { margin: 6px 0 0; font-size: 13px; color: var(--muted); }
+.stat-note { margin: 4px 0 0; font-size: 11px; color: var(--muted); opacity: .8; }
+.filter { min-height: 42px; margin: 0 0 14px; padding: 0 12px; background: var(--paper); color: inherit; border: 1px solid var(--line); border-radius: 3px; font: inherit; }
+.tab-body .item-row { margin-bottom: 8px; }
