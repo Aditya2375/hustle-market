@@ -305,5 +305,8 @@ div.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px,
   .sheet-body { max-width: none; padding: 32px 22px 44px; border-left: 0; }
   .pay-amt { font-size: 60px; }
   .menu { right: 0; min-width: 232px; }
+  .dash-head { padding-top: 48px; }
+  .acct-btn { height: 36px; min-width: 36px; }
+  .tabs { margin-right: -20px; padding-right: 20px; }
 }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
