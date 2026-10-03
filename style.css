@@ -433,3 +433,9 @@ div.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px,
 .proof .field { display: block; margin-bottom: 14px; }
 .shot-ov { position: fixed; inset: 0; z-index: 90; background: rgba(0,0,0,.88); display: flex; align-items: center; justify-content: center; padding: 20px; cursor: zoom-out; }
 .shot-ov img { max-width: 100%; max-height: 100%; border-radius: 10px; }
+
+.coupon { margin-top: 26px; text-align: left; }
+.coupon summary { cursor: pointer; font-size: 14px; color: var(--muted); list-style: none; text-align: center; }
+.coupon summary::-webkit-details-marker { display: none; }
+.coupon summary:hover { color: var(--brass); }
+.coupon[open] summary { margin-bottom: 14px; }
