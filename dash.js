@@ -489,6 +489,27 @@ function proofForm(st) {
   return wrap;
 }
 
+function couponForm() {
+  var d = document.createElement("details"); d.className = "coupon";
+  d.appendChild(el("summary", "", "Have a code?"));
+  var f = document.createElement("form"); f.className = "form proof-form"; f.noValidate = true;
+  var l = el("label", "field", "Code"); var c = document.createElement("input"); c.maxLength = 40; c.autocomplete = "off"; c.spellcheck = false; c.autocapitalize = "characters"; l.appendChild(c);
+  var btn = el("button", "order", "Apply code"); btn.type = "submit";
+  var msg = el("p", "form-msg", ""); msg.setAttribute("aria-live", "polite");
+  f.appendChild(l); f.appendChild(btn); f.appendChild(msg);
+  f.onsubmit = function (e) {
+    e.preventDefault();
+    if (!c.value.trim()) { msg.className = "form-msg err"; msg.textContent = "Enter your code."; return; }
+    btn.disabled = true; msg.className = "form-msg"; msg.textContent = "Checking...";
+    api({ action: "coupon", coupon: c.value.trim() }).then(function (r) {
+      if (!r.ok) throw new Error(r.error || "failed");
+      refresh();
+    }).catch(function (er) { btn.disabled = false; msg.className = "form-msg err"; msg.textContent = (er && er.message && er.message !== "failed") ? er.message : "Could not check. Try again."; });
+  };
+  d.appendChild(f);
+  return d;
+}
+
 function showPending(st) {
   var box = document.getElementById("pending-pay"); box.textContent = "";
   document.getElementById("pending-msg").textContent = "";
@@ -516,6 +537,7 @@ function showPending(st) {
     var a = el("a", "order pay-open", "Open in UPI app"); a.href = link; box.appendChild(a);
     box.appendChild(el("p", "dash-p", "After you pay, send proof below. Your stall goes live once the site team confirms the payment. This page updates when it does."));
     box.appendChild(proofForm(st));
+    if (!st.proof) box.appendChild(couponForm());
   } else {
     box.appendChild(el("p", "dash-p", "The site team will confirm your listing shortly. Check back here."));
   }
