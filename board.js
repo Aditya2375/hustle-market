@@ -108,7 +108,7 @@ function drawManage() {
   last.stalls.forEach(function (s) {
     var row = el("div", "item-row");
     var label = s.status === "live" ? "LIVE" : s.status === "banned" ? "BANNED" : "PENDING";
-    row.appendChild(el("span", "item-row-name", s.name + " \u00b7 " + label + (s.payRef ? " \u00b7 UTR " + s.payRef : "")));
+    row.appendChild(el("span", "item-row-name", s.name + " \u00b7 " + label + (s.coupon ? " \u00b7 COUPON" : "") + (s.payRef ? " \u00b7 UTR " + s.payRef : "")));
     function setTo(v) { return function () { this.disabled = true; s.status = v; draw(); hm.api({ action: "stallstatus", stallId: s.id, status: v }).then(function () { hm.refresh(); }); }; }
     if (s.status !== "banned") {
       var b = el("button", "order" + (s.status === "live" ? " off" : ""), s.status === "live" ? "Set pending" : "Set live"); b.type = "button";
