@@ -501,7 +501,7 @@ function showPending(st) {
     var f = st.fee, link = "upi://pay?pa=" + encodeURIComponent(f.upi) + "&pn=" + encodeURIComponent(f.payee) + "&am=" + encodeURIComponent(String(f.amount)) + "&cu=INR&tn=" + encodeURIComponent("Listing fee");
     box.appendChild(el("p", "kicker", f.early ? "Early price" : "Listing fee"));
     box.appendChild(el("h3", "pay-amt", "\u20b9" + f.amount));
-    if (f.early && f.regular) box.appendChild(el("p", "dash-p", "You signed up before 12:00 PM on 3 October, so you pay the early price. After that the fee is \u20b9" + f.regular + "."));
+    if (f.early && f.regular) box.appendChild(el("p", "dash-p", "You signed up on 3 October, so you pay the early price. From 4 October the fee is \u20b9" + f.regular + "."));
     box.appendChild(el("p", "pay-to", "to " + f.payee));
     var cv = document.createElement("canvas"); cv.className = "qr"; cv.setAttribute("role", "img"); cv.setAttribute("aria-label", "UPI QR code for the listing fee");
     try {
