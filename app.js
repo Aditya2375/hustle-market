@@ -8,7 +8,7 @@ var hmStorage = (function () {
       n.setAttribute("role", "status"); n.textContent = "Browser storage is unavailable. Details and order references may be lost when this tab closes. Keep a copy of any order reference.";
       document.body.prepend(n);
     } }
-    return { getItem: function (k) { try { return window[kind].getItem(k); } catch (e) { warn(); return memory[k] || null; } },
+    return { getItem: function (k) { if (Object.prototype.hasOwnProperty.call(memory,k)) return memory[k]; try { return window[kind].getItem(k); } catch (e) { warn(); return memory[k] || null; } },
       setItem: function (k,v) { memory[k] = String(v); try { window[kind].setItem(k,v); } catch(e) { warn(); } },
       removeItem: function(k) { delete memory[k]; try { window[kind].removeItem(k); } catch(e) { warn(); } },
       clear: function() { memory = Object.create(null); try { window[kind].clear(); } catch(e) { warn(); } }
