@@ -1,0 +1,8 @@
+# Hustle Market
+
+Campus stall directory and order dashboard: https://hustle-market.vercel.app/
+
+Do not treat catalog data as a payment guarantee. Stock, prices and settlement must be verified at the source. This service contains personal and payment workflows and is intentionally not indexed. Do not collect customer details, access codes or payment proofs.
+
+Client source: https://github.com/Aditya2375/hustle-market
+The Apps Script backend source is not in the repository. A client audit does not establish server security.
