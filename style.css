@@ -439,3 +439,8 @@ div.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px,
 .coupon summary::-webkit-details-marker { display: none; }
 .coupon summary:hover { color: var(--brass); }
 .coupon[open] summary { margin-bottom: 14px; }
+
+/* Keep keyboard focus visible and long stall names inside small screens. */
+:focus-visible { outline: 2px solid #f4bc82; outline-offset: 4px; }
+.item-row-name, .stall-name, .notice, .form-msg { overflow-wrap: anywhere; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }
