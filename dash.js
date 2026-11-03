@@ -2,12 +2,13 @@
 // Stall dashboard. A stall signs in with its name and an access code given to the stall.
 // The code is checked on the server for every request and is never put in the page address.
 var stallId = "";
-var login = JSON.parse(localStorage.getItem("hmLogin") || "null");
-var timer = null;
+var login = hmJson(hmStorage.local,"hmLogin",null);
+if (!login || typeof login.login !== "string" || typeof login.code !== "string") login = null;
+var timer = null, refreshing = null;
 var cfg = null;
 var editing = false;
 var lastStall = null;
-var seen = JSON.parse(sessionStorage.getItem("seen") || "[]");
+var seen = hmJson(hmStorage.session,"seen",[]); if (!Array.isArray(seen)) seen = [];
 var firstLoad = true;
 var lastItems = null;
 var lastOrders = [];
@@ -24,8 +25,7 @@ function api(payload) {
   payload.login = login.login;
   payload.code = login.code;
   var t0 = Date.now();
-  return fetch(cfg.backend.url, { method: "POST", body: JSON.stringify(payload) })
-    .then(function (r) { return r.json(); })
+  return hmFetch(cfg.backend.url, { method: "POST", body: JSON.stringify(payload) })
     .then(function (j) { hm.lastMs = Date.now() - t0; return j; });
 }
 
@@ -145,7 +145,7 @@ function drawOrders(orders, boxEl, opts) {
     });
     box.appendChild(det);
   }
-  sessionStorage.setItem("seen", JSON.stringify(seen));
+  hmStorage.session.setItem("seen", JSON.stringify(seen));
   firstLoad = false;
 }
 
@@ -545,7 +545,9 @@ function showPending(st) {
 }
 
 function refresh() {
-  return api({ action: "orders" }).then(async function (res) {
+  if (refreshing) return refreshing;
+  if (!login || typeof login.login !== "string" || typeof login.code !== "string") { login = null; screen("login"); return Promise.resolve(); }
+  refreshing = api({ action: "orders" }).then(async function (res) {
     if (!res.ok) throw new Error(res.error || "failed");
     paintHeader(res.stall.name);
     stallId = res.stall.id;
@@ -587,7 +589,7 @@ function refresh() {
     window.__lastErr = err && err.stack || String(err);
     var line = document.getElementById("status-line");
     if (err.message === "bad login") {
-      localStorage.removeItem("hmLogin");
+      hmStorage.local.removeItem("hmLogin");
       login = null; view = null; editing = false;
       document.getElementById("ext").hidden = true;
       screen("login");
@@ -601,12 +603,13 @@ function refresh() {
     line.textContent = "No connection. Showing the last orders. Retrying...";
     if (!document.getElementById("login").hidden) document.getElementById("login-msg").textContent = "Could not reach the server. Check your connection and try again.";
   });
+  return refreshing.finally(function(){ refreshing = null; });
 }
 
 hm.root = document.getElementById("ext");
 function deviceKey() {
-  var id = localStorage.getItem("deviceId");
-  if (!id) { var b = new Uint8Array(12); crypto.getRandomValues(b); id = Array.prototype.map.call(b, function (x) { return ("0" + x.toString(16)).slice(-2); }).join(""); localStorage.setItem("deviceId", id); }
+  var id = hmStorage.local.getItem("deviceId");
+  if (!id) { var b = new Uint8Array(12); crypto.getRandomValues(b); id = Array.prototype.map.call(b, function (x) { return ("0" + x.toString(16)).slice(-2); }).join(""); hmStorage.local.setItem("deviceId", id); }
   return id;
 }
 document.getElementById("to-signup").addEventListener("click", function () {
@@ -618,8 +621,7 @@ document.getElementById("signup-form").addEventListener("submit", function (e) {
   e.preventDefault();
   var f = e.target, msg = document.getElementById("signup-msg"), btn = document.getElementById("signup-submit");
   btn.disabled = true; msg.className = "form-msg"; msg.textContent = "Creating...";
-  fetch(cfg.backend.url, { method: "POST", body: JSON.stringify({ action: "signup", name: f.elements.name.value.trim(), website: f.elements.website.value, device: deviceKey() }) })
-    .then(function (r) { return r.json(); })
+  hmFetch(cfg.backend.url, { method: "POST", body: JSON.stringify({ action: "signup", name: f.elements.name.value.trim(), website: f.elements.website.value, device: deviceKey() }) })
     .then(function (r) {
       btn.disabled = false;
       if (!r.ok) { msg.className = "form-msg err"; msg.textContent = r.error || "Could not sign up. Try again."; return; }
@@ -634,14 +636,14 @@ document.getElementById("signup-copy").addEventListener("click", function () {
   if (navigator.clipboard) navigator.clipboard.writeText(t).then(function () { b.textContent = "Copied"; setTimeout(function () { b.textContent = "Copy"; }, 1500); });
 });
 document.getElementById("signup-go").addEventListener("click", function () {
-  localStorage.setItem("hmLogin", JSON.stringify(login));
+  hmStorage.local.setItem("hmLogin", JSON.stringify(login));
   editing = false; refresh();
 });
 document.getElementById("login-form").addEventListener("submit", function (e) {
   e.preventDefault();
   var f = e.target;
   login = { login: f.elements.login.value.trim(), code: f.elements.code.value.trim() };
-  localStorage.setItem("hmLogin", JSON.stringify(login));
+  hmStorage.local.setItem("hmLogin", JSON.stringify(login));
   var lm = document.getElementById("login-msg");
   lm.textContent = "Signing in... this can take a few seconds.";
   var sb = f.querySelector("button[type=submit], button:not([type])"); if (sb) sb.disabled = true;
@@ -676,8 +678,8 @@ document.getElementById("bmenu-settings").addEventListener("click", function () 
 });
 
 document.getElementById("signout").addEventListener("click", function () {
-  localStorage.removeItem("hmLogin");
-  sessionStorage.clear();
+  hmStorage.local.removeItem("hmLogin");
+  ["role","seen","hmCmp","hmSid"].forEach(function(k){hmStorage.session.removeItem(k);});
   location.hash = "";
   location.reload();
 });
@@ -687,7 +689,7 @@ window.hmMenu("bacct-btn", "bacct-menu");
 window.hmBusiness = {
   start: function (data) {
     cfg = data;
-    login = JSON.parse(localStorage.getItem("hmLogin") || "null");
+    login = hmJson(hmStorage.local,"hmLogin",null);
     if (login) refresh();
     else { screen("login"); paintHeader("Stall login"); }
   }
