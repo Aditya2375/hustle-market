@@ -1,9 +1,45 @@
+// Storage can be unavailable in private or restricted browsers. Keep the page usable,
+// but visibly warn that this tab's in-memory details will not survive closing it.
+var hmStorage = (function () {
+  function store(kind) {
+    var memory = Object.create(null);
+    function warn() { if (!document.getElementById("storage-warning")) {
+      var n = document.createElement("p"); n.id = "storage-warning"; n.className = "demo-banner";
+      n.setAttribute("role", "status"); n.textContent = "Browser storage is unavailable. Details and order references may be lost when this tab closes. Keep a copy of any order reference.";
+      document.body.prepend(n);
+    } }
+    return { getItem: function (k) { try { return window[kind].getItem(k); } catch (e) { warn(); return memory[k] || null; } },
+      setItem: function (k,v) { memory[k] = String(v); try { window[kind].setItem(k,v); } catch(e) { warn(); } },
+      removeItem: function(k) { delete memory[k]; try { window[kind].removeItem(k); } catch(e) { warn(); } },
+      clear: function() { memory = Object.create(null); try { window[kind].clear(); } catch(e) { warn(); } }
+    };
+  }
+  return { local: store("localStorage"), session: store("sessionStorage") };
+})();
+function hmJson(store,key,fallback) { try { var s=store.getItem(key); return s && s.length < 2000000 ? JSON.parse(s) : fallback; } catch(e) { return fallback; } }
+// No automatic retry of mutations: an interrupted response may already be committed.
+function hmFetch(url,opts) {
+  var controller = new AbortController(), timer = setTimeout(function(){ controller.abort(); },20000);
+  opts = Object.assign({},opts || {},{signal:controller.signal});
+  return fetch(url,opts).then(function(r){
+    if(!r.ok) throw new Error("Server request failed ("+r.status+").");
+    return r.text();
+  }).then(function(text){ if(text.length>2000000) throw new Error("Server response too large."); return JSON.parse(text); })
+  .catch(function(e){ if(e.name === "AbortError") throw new Error("Request timed out. An action may already have completed. Check its status before submitting again."); throw e; })
+  .finally(function(){clearTimeout(timer);});
+}
+function hmCatalog(d) {
+  return !!(d && d.event && Array.isArray(d.hostels) && Array.isArray(d.categories) && Array.isArray(d.stalls) && Array.isArray(d.items) && d.stalls.length<=500 && d.items.length<=10000 &&
+    d.stalls.every(function(s){return s && typeof s.id === "string" && typeof s.name === "string" && Array.isArray(s.hostels);}) &&
+    d.items.every(function(i){return i && typeof i.id === "string" && typeof i.name === "string" && typeof i.stall === "string" && Number.isFinite(i.price) && i.price>=0;}));
+}
+var catalogAt = 0, catalogBusy = false;
 // Hustle Market - plain JavaScript, no libraries.
 // All stall and item data lives in data.json. Edit that file to update the site.
 
 var data = null;
 var state = {
-  hostel: localStorage.getItem("hostel") || "",
+  hostel: hmStorage.local.getItem("hostel") || "",
   query: "",
   category: "all",
   sub: "all"
@@ -19,8 +55,8 @@ function el(tag, className, text) {
 }
 
 var cmpIds = [];
-try { cmpIds = JSON.parse(sessionStorage.getItem("hmCmp") || "[]"); if (!Array.isArray(cmpIds)) cmpIds = []; } catch (e) { cmpIds = []; }
-function saveCmp() { try { sessionStorage.setItem("hmCmp", JSON.stringify(cmpIds)); } catch (e) {} }
+try { cmpIds = hmJson(hmStorage.session,"hmCmp",[]); if (!Array.isArray(cmpIds)) cmpIds = []; } catch (e) { cmpIds = []; }
+function saveCmp() { try { hmStorage.session.setItem("hmCmp", JSON.stringify(cmpIds)); } catch (e) {} }
 function toggleCmp(id) {
   var i = cmpIds.indexOf(id);
   if (i > -1) cmpIds.splice(i, 1); else cmpIds.push(id);
@@ -120,34 +156,33 @@ function send(payload) {
   var url = backendUrl();
   if (!url) {
     return new Promise(function (resolve) {
-      var list = JSON.parse(localStorage.getItem("demoOrders") || "[]");
+      var list = hmJson(hmStorage.local,"demoOrders",[]);
       if (payload.action === "order") {
         payload.id = "DEMO-" + (list.length + 1);
         payload.time = new Date().toISOString();
         payload.status = "new";
         list.push(payload);
-        localStorage.setItem("demoOrders", JSON.stringify(list));
+        hmStorage.local.setItem("demoOrders", JSON.stringify(list));
       }
       if (payload.action === "bug") {
-        var bugs = JSON.parse(localStorage.getItem("demoBugs") || "[]");
+        var bugs = hmJson(hmStorage.local,"demoBugs",[]);
         bugs.push(payload);
-        localStorage.setItem("demoBugs", JSON.stringify(bugs));
+        hmStorage.local.setItem("demoBugs", JSON.stringify(bugs));
       }
       resolve({ ok: true, id: payload.id || "DEMO", demo: true });
     });
   }
-  return fetch(url, { method: "POST", body: JSON.stringify(payload) })
-    .then(function (r) { return r.json(); });
+  return hmFetch(url, { method: "POST", body: JSON.stringify(payload) });
 }
 
 // random id kept on this device, only used to slow down spam
 function deviceId() {
-  var id = localStorage.getItem("deviceId");
+  var id = hmStorage.local.getItem("deviceId");
   if (!id) {
     var b = new Uint8Array(12);
     crypto.getRandomValues(b);
     id = Array.prototype.map.call(b, function (x) { return ("0" + x.toString(16)).slice(-2); }).join("");
-    localStorage.setItem("deviceId", id);
+    hmStorage.local.setItem("deviceId", id);
   }
   return id;
 }
@@ -182,9 +217,9 @@ function mobileProblem(v) {
   return "";
 }
 function profile() {
-  try { var p = JSON.parse(localStorage.getItem("hmMe") || "null"); return p && p.name && validMobile(p.mobile) && p.room && p.hostel ? p : null; } catch (e) { return null; }
+  try { var p = hmJson(hmStorage.local,"hmMe",null); return p && p.name && validMobile(p.mobile) && p.room && p.hostel ? p : null; } catch (e) { return null; }
 }
-function saveProfile(name, mobile, hostel, room) { localStorage.setItem("hmMe", JSON.stringify({ name: name, mobile: mobile, hostel: hostel, room: room })); drawAccount(); }
+function saveProfile(name, mobile, hostel, room) { hmStorage.local.setItem("hmMe", JSON.stringify({ name: name, mobile: mobile, hostel: hostel, room: room })); drawAccount(); }
 
 var MOBILE_HELP = "This is how the business contacts you about your order. Double-check it. A wrong number means they can't reach you and you lose your order.";
 
@@ -321,6 +356,7 @@ function openOrder(item) {
 
   form.onsubmit = function (e) {
     e.preventDefault();
+    if (backendUrl() && (!liveReady || Date.now() - catalogAt > 60000)) { msg.textContent = "Listings are out of date. Close this order and refresh before ordering."; return; }
     submit.disabled = true;
     msg.className = "form-msg";
     msg.textContent = "Sending...";
@@ -349,7 +385,7 @@ function openOrder(item) {
       submit.disabled = false;
       msg.className = "form-msg err";
       msg.textContent = (err && err.message && err.message !== "failed" && err.message.indexOf("fetch") === -1)
-        ? err.message : "Could not send. Check your connection and try again. Your details are still here.";
+        ? err.message : "No confirmation received. The order may already exist. Check your order notices or contact the stall before submitting again. Your details are still here.";
     });
   };
 
@@ -369,7 +405,7 @@ function orderButton(item) {
     off.disabled = true;
     return off;
   }
-  if (!liveReady) {
+  if (!liveReady || (backendUrl() && Date.now() - catalogAt > 60000)) {
     var up = el("button", "order off", "Updating..."); up.type = "button"; up.disabled = true; return up;
   }
   var stallObj = stallById(item.stall);
@@ -397,7 +433,7 @@ function drawHostelToggle() {
     b.setAttribute("aria-pressed", state.hostel === name ? "true" : "false");
     b.addEventListener("click", function () {
       state.hostel = name;
-      localStorage.setItem("hostel", name);
+      hmStorage.local.setItem("hostel", name);
       drawAll();
     });
     box.appendChild(b);
@@ -714,20 +750,20 @@ document.getElementById("identify-form").addEventListener("submit", function (e)
   if (!/^[A-Z0-9][A-Z0-9 \-\/]{0,11}$/.test(room)) { msg.className = "form-msg err"; msg.textContent = "Enter your room number, like A-204."; return; }
   saveProfile(name, mob, hostelSel, room);
   try { send({ action: "register", name: name, mobile: mob, hostel: hostelSel, room: room, device: deviceId(), website: "" }).catch(function () {}); } catch (e) {}
-  state.hostel = hostelSel; localStorage.setItem("hostel", hostelSel);
+  state.hostel = hostelSel; hmStorage.local.setItem("hostel", hostelSel);
   document.getElementById("identify").hidden = true;
   setRole("customer");
   startTour(false);
 });
 document.getElementById("identify-back").addEventListener("click", function () {
   document.getElementById("identify").hidden = true;
-  setRole(profile() && sessionStorage.getItem("role") === "customer" ? "customer" : "");
+  setRole(profile() && hmStorage.session.getItem("role") === "customer" ? "customer" : "");
 });
 
 // ---------- who is this: customer or business ----------
 
 function role() {
-  return sessionStorage.getItem("role") || (localStorage.getItem("hmLogin") ? "business" : "");
+  return hmStorage.session.getItem("role") || (hmStorage.local.getItem("hmLogin") ? "business" : "");
 }
 
 // Visit counter. A random id the browser makes up, no personal data. Only while the customer view is open and visible.
@@ -735,8 +771,8 @@ var presenceTimer = null;
 function presence(on) {
   clearInterval(presenceTimer); presenceTimer = null;
   if (!on || !backendUrl()) return;
-  var sid = sessionStorage.getItem("hmSid");
-  if (!sid) { sid = Math.random().toString(36).slice(2, 12) + Date.now().toString(36).slice(-6); sessionStorage.setItem("hmSid", sid); }
+  var sid = hmStorage.session.getItem("hmSid");
+  if (!sid) { sid = Math.random().toString(36).slice(2, 12) + Date.now().toString(36).slice(-6); hmStorage.session.setItem("hmSid", sid); }
   function send(kind) {
     if (document.hidden) return;
     try { fetch(backendUrl(), { method: "POST", body: JSON.stringify({ action: kind, sid: sid }), keepalive: true }).catch(function () {}); } catch (e) {}
@@ -747,7 +783,7 @@ function presence(on) {
 
 function setRole(r) {
   if (r === "customer" && !profile()) { showIdentify(false); return; }
-  if (r) sessionStorage.setItem("role", r); else sessionStorage.removeItem("role");
+  if (r) hmStorage.session.setItem("role", r); else hmStorage.session.removeItem("role");
   var shown = r === "customer" || r === "business";
   document.getElementById("identify").hidden = true;
   document.getElementById("gate").hidden = shown;
@@ -790,15 +826,16 @@ function drawAll() {
 
 // Keep listings fresh: sold-out and price changes show up within about 30 seconds.
 setInterval(function () {
-  if (document.hidden || !data || !backendUrl() || sessionStorage.getItem("role") !== "customer") return;
+  if (catalogBusy || document.hidden || !data || !backendUrl() || hmStorage.session.getItem("role") !== "customer") return;
   if (!document.getElementById("sheet").hidden || window.location.hash) return;
-  fetch(backendUrl() + "?action=data").then(function (r) { return r.json(); }).then(function (live) {
-    if (!live || !live.items || !live.stalls) return;
-    live.backend = data.backend; live.support = data.support; data = live; liveReady = true;
-    try { localStorage.setItem("hmData", JSON.stringify({ t: Date.now(), d: live })); } catch (e) {}
+  catalogBusy = true;
+  hmFetch(backendUrl() + "?action=data").then(function (live) {
+    if (!hmCatalog(live)) return;
+    live.backend = data.backend; live.support = data.support; data = live; liveReady = true; catalogAt = Date.now();
+    try { hmStorage.local.setItem("hmData", JSON.stringify({ t: Date.now(), d: live })); } catch (e) {}
     if (!document.getElementById("sheet").hidden || window.location.hash) return;
     drawStats(); drawResults();
-  }).catch(function () {});
+  }).catch(function () { liveReady = false; }).finally(function(){catalogBusy = false;});
 }, 30000);
 
 
@@ -830,15 +867,15 @@ function showOrderNotice(o, res) {
 
 function checkOrders() {
   var me = profile();
-  if (!me || !backendUrl() || sessionStorage.getItem("role") !== "customer") return;
-  var list; try { list = JSON.parse(localStorage.getItem("hmOrders") || "[]"); } catch (e) { return; }
+  if (!me || !backendUrl() || hmStorage.session.getItem("role") !== "customer") return;
+  var list; try { list = hmJson(hmStorage.local,"hmOrders",[]); } catch (e) { return; }
   var dirty = false, now = Date.now();
-  list.filter(function (o) { return !o.done && o.t && now - o.t < 6 * 3600 * 1000; }).slice(0, 5).forEach(function (o) {
+  (Array.isArray(list) ? list : []).filter(function (o) { return !o.done && o.t && now - o.t < 6 * 3600 * 1000; }).slice(0, 5).forEach(function (o) {
     send({ action: "orderstatus", id: o.id, mobile: me.mobile }).then(function (res) {
       if (!res || !res.ok) return;
       if (res.status === "expired" || res.status === "cancelled") { o.done = true; dirty = true; showOrderNotice(o, res); }
       else if (res.status !== "awaiting") { o.done = true; dirty = true; }
-      if (dirty) try { localStorage.setItem("hmOrders", JSON.stringify(list)); } catch (e) {}
+      if (dirty) try { hmStorage.local.setItem("hmOrders", JSON.stringify(list)); } catch (e) {}
     }).catch(function () {});
   });
 }
@@ -933,7 +970,7 @@ var noteTimer = setTimeout(function () {
 
 function boot(json, live) {
   data = json;
-  liveReady = live;
+  liveReady = live; if (live) catalogAt = Date.now();
   document.getElementById("support-note").textContent = (data.support && data.support.note) || "";
   if (data.hostels.indexOf(state.hostel) === -1) state.hostel = data.hostels[0];
   // The demo banner stays until a live backend URL is set AND the Sheet Config says demo is FALSE.
@@ -947,27 +984,26 @@ function boot(json, live) {
     document.getElementById("gate-business").disabled = false;
     setRole(role());
     if (window.location.hash === "#business") setRole("business");
-  } else if (sessionStorage.getItem("role") === "customer") {
+  } else if (hmStorage.session.getItem("role") === "customer") {
     drawStats(); drawResults(); showRoute();
   }
 }
 
 var cached = null;
-try { cached = JSON.parse(localStorage.getItem("hmData") || "null"); } catch (e) { cached = null; }
+try { cached = hmJson(hmStorage.local,"hmData",null); } catch (e) { cached = null; }
 
-fetch("data.json")
-  .then(function (r) { return r.json(); })
+hmFetch("data.json")
   .then(function (local) {
     if (!local.backend || !local.backend.url) { boot(local, true); return; }
     if (cached && cached.d && cached.d.items && Date.now() - cached.t < 86400000) {
       cached.d.backend = local.backend; cached.d.support = local.support;
       boot(cached.d, false);
     }
-    return fetch(local.backend.url + "?action=data").then(function (r) { return r.json(); })
+    return hmFetch(local.backend.url + "?action=data")
       .then(function (live) {
-        if (!live || !live.items || !live.stalls) throw new Error("bad data");
+        if (!hmCatalog(live)) throw new Error("bad data");
         live.backend = local.backend; live.support = local.support;
-        try { localStorage.setItem("hmData", JSON.stringify({ t: Date.now(), d: live })); } catch (e) {}
+        try { hmStorage.local.setItem("hmData", JSON.stringify({ t: Date.now(), d: live })); } catch (e) {}
         boot(live, true);
       });
   })
@@ -1012,7 +1048,7 @@ document.getElementById("gate-customer").addEventListener("click", function () {
 document.getElementById("menu-edit").addEventListener("click", function () { showIdentify(true); });
 document.getElementById("menu-tour").addEventListener("click", function () { startTour(true); });
 document.getElementById("menu-out").addEventListener("click", function () {
-  localStorage.removeItem("hmMe"); sessionStorage.removeItem("role"); drawAccount(); setRole("");
+  hmStorage.local.removeItem("hmMe"); hmStorage.session.removeItem("role"); drawAccount(); setRole("");
 });
 window.hmMenu("acct-btn", "acct-menu");
 drawAccount();
@@ -1028,11 +1064,11 @@ var TOUR = [
   ["Get it at your room", "The stall delivers to your room and contacts you on your number if needed. Fix your details any time from the account menu."]
 ];
 function startTour(force) {
-  if (!force) { try { if (localStorage.getItem("hmTour")) return; } catch (e) {} }
+  if (!force) { try { if (hmStorage.local.getItem("hmTour")) return; } catch (e) {} }
   var i = 0;
   var wrap = el("div", "tour"); wrap.setAttribute("role", "dialog"); wrap.setAttribute("aria-modal", "true"); wrap.setAttribute("aria-label", "How it works");
   var card = el("div", "tour-card"); wrap.appendChild(card);
-  function done() { try { localStorage.setItem("hmTour", "1"); } catch (e) {} wrap.remove(); }
+  function done() { try { hmStorage.local.setItem("hmTour", "1"); } catch (e) {} wrap.remove(); }
   function paint() {
     card.textContent = "";
     card.appendChild(el("p", "tour-step", "Step " + (i + 1) + " of " + TOUR.length));
@@ -1056,9 +1092,9 @@ var CUST_TYPES = ["Paid but not approved", "Wrong order", "Order not delivered",
 function rememberOrder(id, stallName, itemName) {
   if (!id || id === "HM-0000") return;
   try {
-    var list = JSON.parse(localStorage.getItem("hmOrders") || "[]");
+    var list = hmJson(hmStorage.local,"hmOrders",[]);
     list.unshift({ id: id, stall: stallName, item: itemName, t: Date.now() });
-    localStorage.setItem("hmOrders", JSON.stringify(list.slice(0, 20)));
+    hmStorage.local.setItem("hmOrders", JSON.stringify(list.slice(0, 20)));
   } catch (e) {}
   drawComplaintForm();
 }
@@ -1066,7 +1102,7 @@ function drawComplaintForm() {
   var f = document.getElementById("complaint-form");
   if (!f) return;
   var os = f.elements.orderId; os.textContent = "";
-  var list = []; try { list = JSON.parse(localStorage.getItem("hmOrders") || "[]"); } catch (e) {}
+  var list = []; try { list = hmJson(hmStorage.local,"hmOrders",[]); } catch (e) {}
   var none = el("option", "", list.length ? "Not about one order" : "No orders yet on this device"); none.value = ""; os.appendChild(none);
   list.forEach(function (o) { var op = el("option", "", o.id + " \u00b7 " + o.item + " \u00b7 " + o.stall); op.value = o.id; os.appendChild(op); });
   var ts = f.elements.type; if (!ts.options.length) CUST_TYPES.forEach(function (t) { var op = el("option", "", t); op.value = t; ts.appendChild(op); });
